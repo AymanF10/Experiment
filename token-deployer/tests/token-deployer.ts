@@ -411,10 +411,13 @@ describe("token-deployer with transfer hook", () => {
       "confirmed"
     );
     console.log("Partner token balance after ", partnerTokenInfo.value.uiAmount);
+    const depositFee = 2000; // 2% fee
+    const feeAmount = (mintAmount * depositFee) / 10000;
+    const expectedMintedAmount = mintAmount - feeAmount;
     assert.equal(
       Number(partnerTokenInfo.value.amount),
-      mintAmount,
-      "Ecosystem partner should have received tokens"
+      expectedMintedAmount,
+      "Ecosystem partner should have received tokens minus the fee"
     );
     
     const feeVaultInfo = await connection.getTokenAccountBalance(
