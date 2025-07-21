@@ -202,23 +202,20 @@ pub mod token_deployer {
             msg!("Updated collected fees to: {}", ctx.accounts.ecosystem_config.collected_fees);
         }
         
-        let remaining_amount = amount.checked_sub(fee_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
-        
-        if remaining_amount > 0 {
-            transfer_checked(
-                CpiContext::new(
-                    ctx.accounts.collateral_token_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.user_collateral_account.to_account_info(),
-                        to: ctx.accounts.collateral_vault.to_account_info(),
-                        authority: ctx.accounts.payer.to_account_info(),
-                        mint: ctx.accounts.collateral_token_mint.to_account_info(),
-                    },
-                ),
-                remaining_amount,
-                ctx.accounts.collateral_token_mint.decimals,
-            )?;
-        }
+        // Transfer the full amount (including fee) to collateral_vault
+        transfer_checked(
+            CpiContext::new(
+                ctx.accounts.collateral_token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.user_collateral_account.to_account_info(),
+                    to: ctx.accounts.collateral_vault.to_account_info(),
+                    authority: ctx.accounts.payer.to_account_info(),
+                    mint: ctx.accounts.collateral_token_mint.to_account_info(),
+                },
+            ),
+            amount, // Transfer the full amount as collateral
+            ctx.accounts.collateral_token_mint.decimals,
+        )?;
         
         let cpi_accounts = MintTo {
             mint: ctx.accounts.mint.to_account_info(),
@@ -245,12 +242,13 @@ pub mod token_deployer {
             &signers,
         );
 
-        mint_to(cpi_context, amount)?;
+        let minted_amount = amount.checked_sub(fee_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
+        mint_to(cpi_context, minted_amount)?; // Mint only the net amount after fees
         
         emit!(EcosystemDeposited {
             ecosystem_mint: ctx.accounts.mint.key(),
             depositor: ctx.accounts.payer.key(),
-            amount,
+            amount: minted_amount, // Emit the minted amount
             fee: fee_amount,
             timestamp: Clock::get()?.unix_timestamp,
         });
@@ -610,8 +608,6 @@ pub mod token_deployer {
         
         Ok(())
     }
-
-
 }
 
 #[derive(Accounts)]
