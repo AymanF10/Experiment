@@ -1,0 +1,41 @@
+{
+  "name": "ecosystem-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "initialize": "npm run build && node dist/cli.js initialize",
+    "create-ecosystem": "npm run build && node dist/cli.js create-ecosystem",
+    "create-token-account": "npm run build && node dist/cli.js create-token-account",
+    "deposit": "npm run build && node dist/cli.js deposit",
+    "add-approver": "npm run build && node dist/cli.js add-approver",
+    "remove-approver": "npm run build && node dist/cli.js remove-approver",
+    "request-withdrawal": "npm run build && node dist/cli.js request-withdrawal",
+    "approve-withdrawal": "npm run build && node dist/cli.js approve-withdrawal",
+    "check-balance": "npm run build && node dist/cli.js check-balance",
+    "run-all": "npm run build && node dist/cli.js run-all",
+    "dev:initialize": "tsx src/cli.ts initialize",
+    "dev:create-ecosystem": "tsx src/cli.ts create-ecosystem",
+    "dev:create-token-account": "tsx src/cli.ts create-token-account",
+    "dev:deposit": "tsx src/cli.ts deposit",
+    "dev:run-all": "tsx src/cli.ts run-all",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.87.6",
+    "bn.js": "^5.2.1",
+    "minimist": "^1.2.8",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "^20.10.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
+  }
+}
