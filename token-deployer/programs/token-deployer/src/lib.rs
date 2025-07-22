@@ -13,7 +13,7 @@ use std::str::FromStr;
 use jupiter_aggregator::program::Jupiter;
 
 declare_program!(jupiter_aggregator);
-declare_id!("DuFkXZLHxnuKpz9QzS128kEbs7e1bvmC91EGywP74n4U");
+declare_id!("CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh");
 
 const VAULT_SEED: &[u8] = b"vault";
 const JUP_PROGRAM_ID: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
@@ -244,8 +244,8 @@ pub mod token_deployer {
             cpi_accounts,
             &signers,
         );
-
-        mint_to(cpi_context, amount)?;
+//Bug fix: collateralisation 1:1
+        mint_to(cpi_context, remaining_amount)?;
         
         emit!(EcosystemDeposited {
             ecosystem_mint: ctx.accounts.mint.key(),
@@ -610,7 +610,6 @@ pub mod token_deployer {
         
         Ok(())
     }
-
 
 }
 

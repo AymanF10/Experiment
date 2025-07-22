@@ -7,14 +7,15 @@ skip-lint = false
 
 [programs.localnet]
 cpi_swap_program = "BkY6rmiB7f2X5buFpvaTBQJhbPdiJybDVmsXLcFq6m7L"
-mock_jupiter = "3BsuUykDu3pkyAZwRTZiCMMLpJesCiAsjxHWNPe5DZjw"
-token_deployer = "DuFkXZLHxnuKpz9QzS128kEbs7e1bvmC91EGywP74n4U"
+mock_jupiter = "JA1v2pi2o7yG79hHFqADtSgPZHmMspnKHGcecPAeK9pa"
+token_deployer = "CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh"
+transfer_hook = "6DkyQp5UoCkxubGGGBFhDsMP4yiuAg2PciJBQKJHD35E"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "mainnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
