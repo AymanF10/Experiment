@@ -215,8 +215,8 @@ describe("token-deployer with transfer hook", () => {
     const uri = "https://example.com/metadata.json"; // ToDo - test with correct JSON metadata format
     const transferHookProgramId = transferHookProgram.programId;
     const maxMintingCap = new anchor.BN(1000 * 10 ** decimals);
-    const withdrawalFee = 2000;
-    const depositFee = 2000;
+    const withdrawalFee = 2000; // 20% fee (2000 basis points)
+    const depositFee = 2000; // 20% fee (2000 basis points)
 
     [mintAuthorityPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("mint_authority"), mintKeypair.publicKey.toBuffer()],
@@ -411,7 +411,7 @@ describe("token-deployer with transfer hook", () => {
     );
     // Keep this important log to show the token balance after minting
     console.log("Partner token balance after minting:", partnerTokenInfo.value.uiAmount);
-    const depositFee = 2000; // 2% fee
+    const depositFee = 2000; // 20% fee (2000 basis points)
     const feeAmount = (mintAmount * depositFee) / 10000;
     const expectedMintedAmount = mintAmount - feeAmount;
     assert.equal(
@@ -802,7 +802,7 @@ describe("token-deployer with transfer hook", () => {
     
     mintInfoAfter = await getMint(connection, mintKeypair.publicKey, "confirmed", TOKEN_2022_PROGRAM_ID);
     console.log("Token supply after unfreezing:", Number(mintInfoAfter.supply) / (10 ** decimals));
-    const depositFee = 2000; // 2% fee
+    const depositFee = 2000; // 20% fee (2000 basis points)
     const feeAmount = (mintAmount * depositFee) / 10000;
     const expectedMintedAmount = mintAmount - feeAmount;
     assert.equal(
