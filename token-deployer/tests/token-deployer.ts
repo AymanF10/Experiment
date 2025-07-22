@@ -64,6 +64,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([ecosystemPartnerKeypair])
       .rpc({ commitment: "confirmed" });
@@ -72,10 +73,8 @@ describe("token-deployer with transfer hook", () => {
   async function expectTxToFail(txPromise) {
     try {
       await txPromise;
-      console.log("Tx successful");
       return false;
     } catch (error) {
-      console.log("Tx failed: ", error.message.slice(0, 100) + "...");
       return true;
     }
   }
@@ -268,6 +267,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
       .signers([mintKeypair])
@@ -374,7 +374,6 @@ describe("token-deployer with transfer hook", () => {
 
   it("Only allow ecosystem partner to deposit", async () => {
     const mintAmount = 100 * 10 ** decimals;
-    console.log(`${mintAmount / (10 ** decimals)} tokens`);
     
     const unauthorizedMintTx = tokenDeployerProgram.methods
       .depositEcosystem(new anchor.BN(mintAmount))
@@ -390,6 +389,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([unauthorizedWalletKeypair]);
     
@@ -402,7 +402,6 @@ describe("token-deployer with transfer hook", () => {
       "confirmed",
       TOKEN_2022_PROGRAM_ID
     );
-    console.log("Initial token supply:", Number(mintInfoBefore.supply) / (10 ** decimals));
     
     await mintTokensWithPartner(mintAmount);
     
@@ -410,7 +409,8 @@ describe("token-deployer with transfer hook", () => {
       ecosystemPartnerTokenAccount, 
       "confirmed"
     );
-    console.log("Partner token balance after ", partnerTokenInfo.value.uiAmount);
+    // Keep this important log to show the token balance after minting
+    console.log("Partner token balance after minting:", partnerTokenInfo.value.uiAmount);
     const depositFee = 2000; // 2% fee
     const feeAmount = (mintAmount * depositFee) / 10000;
     const expectedMintedAmount = mintAmount - feeAmount;
@@ -439,6 +439,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([ecosystemPartnerKeypair]);
       
@@ -493,6 +494,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         destinationAccount: walletCollateralAccount,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc({ commitment: "confirmed" });
     
@@ -531,6 +533,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         destinationAccount: walletCollateralAccount,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       });
       
     const emptyCollectionFailed = await expectTxToFail(emptyCollectionTx.rpc({ commitment: "confirmed" }));
@@ -577,6 +580,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         destinationAccount: unauthorizedCollateralAccount,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([unauthorizedWalletKeypair]);
     
@@ -719,6 +723,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([ecosystemPartnerKeypair]);
     
@@ -762,6 +767,7 @@ describe("token-deployer with transfer hook", () => {
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([ecosystemPartnerKeypair]);
     
@@ -783,10 +789,13 @@ describe("token-deployer with transfer hook", () => {
     
     mintInfoAfter = await getMint(connection, mintKeypair.publicKey, "confirmed", TOKEN_2022_PROGRAM_ID);
     console.log("Token supply after unfreezing:", Number(mintInfoAfter.supply) / (10 ** decimals));
+    const depositFee = 2000; // 2% fee
+    const feeAmount = (mintAmount * depositFee) / 10000;
+    const expectedMintedAmount = mintAmount - feeAmount;
     assert.equal(
       Number(mintInfoAfter.supply),
-      initialSupply + mintAmount,
-      "Supply should increase after unfreezing"
+      initialSupply + expectedMintedAmount,
+      "Supply should increase by the amount minus fees after unfreezing"
     );
     
     console.log("Non owner trying to toggle global and ecosystem freeze");

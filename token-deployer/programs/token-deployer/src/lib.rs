@@ -13,7 +13,7 @@ use std::str::FromStr;
 use jupiter_aggregator::program::Jupiter;
 
 declare_program!(jupiter_aggregator);
-declare_id!("DuFkXZLHxnuKpz9QzS128kEbs7e1bvmC91EGywP74n4U");
+declare_id!("CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh");
 
 const VAULT_SEED: &[u8] = b"vault";
 const JUP_PROGRAM_ID: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";

@@ -12,7 +12,7 @@ pub use state::*;
 
 use spl_transfer_hook_interface::instruction::TransferHookInstruction;
 
-declare_id!("6BGyrUsGSJiscv8M3hC7JWMm4JKLBXMu3Js4ZQvcNY3G");
+declare_id!("6DkyQp5UoCkxubGGGBFhDsMP4yiuAg2PciJBQKJHD35E");
 
 #[program]
 pub mod transfer_hook {
