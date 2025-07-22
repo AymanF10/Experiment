@@ -420,6 +420,19 @@ describe("token-deployer with transfer hook", () => {
       "Ecosystem partner should have received tokens minus the fee"
     );
     
+    // Verify 1:1 collateralization - collateral in vault should equal minted tokens
+    const collateralVaultInfo = await connection.getTokenAccountBalance(
+      collateralVaultPda,
+      "confirmed"
+    );
+    console.log("Collateral in vault:", collateralVaultInfo.value.uiAmount);
+    
+    assert.equal(
+      Number(collateralVaultInfo.value.amount),
+      Number(partnerTokenInfo.value.amount),
+      "Collateral in vault should equal minted tokens (1:1 collateralization)"
+    );
+    
     const feeVaultInfo = await connection.getTokenAccountBalance(
       feeVaultPda,
       "confirmed"
