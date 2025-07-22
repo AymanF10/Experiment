@@ -374,6 +374,17 @@ describe("token-deployer with transfer hook", () => {
 
   it("Only allow ecosystem partner to deposit", async () => {
     const mintAmount = 100 * 10 ** decimals;
+
+    const partnerTokenInfoBefore = await connection.getTokenAccountBalance(
+      ecosystemPartnerTokenAccount, 
+      "confirmed"
+    );
+    console.log("Partner token balance Before minting:", partnerTokenInfoBefore.value.uiAmount);
+    assert.equal(
+      Number(partnerTokenInfoBefore.value.amount),
+      0,
+      "Ecosystem partner tokens balance must be 0"
+    );
     
     const unauthorizedMintTx = tokenDeployerProgram.methods
       .depositEcosystem(new anchor.BN(mintAmount))
