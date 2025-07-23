@@ -31,6 +31,11 @@ pub fn token2022_program_id() -> Pubkey {
     Pubkey::from_str(TOKEN2022_PROGRAM).unwrap_or_else(|_| panic!("Invalid token2022 program"))
 }
 
+pub fn collateral_token_program_id() -> Pubkey {
+    // This function will return either the Token or Token2022 program ID
+    Pubkey::from_str(TOKEN_PROGRAM).unwrap_or_else(|_| panic!("Invalid token program"))
+}
+
 pub fn sp_mint_id() -> Pubkey {
     Pubkey::from_str(SP_MINT_STR).unwrap_or_else(|_| panic!("Invalid SP mint"))
 }
@@ -86,8 +91,14 @@ fn validate_swap(ctx: &Context<Swap>, amount: u64, purchase_reference: &str) -> 
         ErrorCode::InvalidPurchaseReference
     );
     
-    require_keys_eq!(*ctx.accounts.jupiter_program.key, jupiter_program_id());
+    // Validate Jupiter program
+    require_keys_eq!(
+        *ctx.accounts.jupiter_program.key, 
+        jupiter_program_id(),
+        ErrorCode::InvalidProgramId
+    );
 
+    // Validate input and output mints
     require_keys_eq!(
         ctx.accounts.input_mint.key(),
         ctx.accounts.ecosystem_config.collateral_token_mint,
@@ -121,6 +132,7 @@ fn process_fee(ctx: &mut Context<DepositEcosystem>, fee_amount: u64, swap_data: 
     ];
     let fee_vault_authority_signer_seeds = &[&fee_vault_authority_seeds[..]];
     
+    // First transfer fee amount to vault_input_token_account for Jupiter swap
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new_with_signer(
             ctx.accounts.collateral_token_program.to_account_info(),
@@ -136,8 +148,10 @@ fn process_fee(ctx: &mut Context<DepositEcosystem>, fee_amount: u64, swap_data: 
         ctx.accounts.collateral_token_mint.decimals,
     )?;
     
+    // Store initial balance of USDC output account
     let out_token_balance_before = ctx.accounts.vault_output_token_account.amount;
     
+    // Execute Jupiter swap to convert collateral token to USDC
     require_keys_eq!(*ctx.accounts.jupiter_program.key, jupiter_program_id());
     
     let accounts: Box<Vec<AccountMeta>> = Box::new(
@@ -161,12 +175,42 @@ fn process_fee(ctx: &mut Context<DepositEcosystem>, fee_amount: u64, swap_data: 
         &[&[VAULT_SEED, &[ctx.bumps.vault]]],
     )?;
     
+    // Calculate USDC received from swap
     ctx.accounts.vault_output_token_account.reload()?;
     let usdc_received = ctx.accounts.vault_output_token_account.amount
         .checked_sub(out_token_balance_before)
         .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
-        
-    process_sp_tokens(ctx, usdc_received)?;
+    
+    // Convert USDC to SP tokens and store them
+    let sp_amount = usdc_received
+        .checked_mul(SP_PER_USDC)
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
+    
+    let sp_bump = ctx.bumps.sp_mint_authority;
+    let sp_signer_seeds = [
+        b"sp_mint_authority".as_ref(),
+        &[sp_bump][..],
+    ];
+    let sp_signers = [&sp_signer_seeds[..]];
+    
+    // Mint SP tokens to SP vault
+    anchor_spl::token_2022::mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.sp_token_program.to_account_info(),
+            anchor_spl::token_2022::MintTo {
+                mint: ctx.accounts.sp_token_mint.to_account_info(),
+                to: ctx.accounts.sp_vault.to_account_info(),
+                authority: ctx.accounts.sp_mint_authority.to_account_info(),
+            },
+            &sp_signers,
+        ),
+        sp_amount,
+    )?;
+    
+    // Update collected fees SP amount
+    ctx.accounts.ecosystem_config.collected_fees_sp = ctx.accounts.ecosystem_config.collected_fees_sp
+        .checked_add(sp_amount)
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
     Ok(())
 }
@@ -273,9 +317,36 @@ fn process_swap_transfer(ctx: &Context<Swap>, amount: u64) -> Result<()> {
     Ok(())
 }
 
-fn execute_jupiter_swap(ctx: &mut Context<Swap>, data: &[u8]) -> Result<u64> {
+fn process_jupiter_swap(ctx: &mut Context<Swap>, amount: u64, swap_data: &[u8]) -> Result<u64> {
+    // Transfer collateral tokens from vault to input token account
+    let mint_key = ctx.accounts.mint.key();
+    let mint_key_ref = mint_key.as_ref();
+    let fee_vault_authority_seeds = &[
+        b"fee_vault_authority".as_ref(),
+        mint_key_ref,
+        &[ctx.bumps.fee_vault_authority],
+    ];
+    let fee_vault_authority_signer_seeds = &[&fee_vault_authority_seeds[..]];
+    
+    anchor_spl::token_interface::transfer_checked(
+        CpiContext::new_with_signer(
+            ctx.accounts.collateral_token_program.to_account_info(),
+            anchor_spl::token_interface::TransferChecked {
+                from: ctx.accounts.collateral_vault.to_account_info(),
+                to: ctx.accounts.vault_input_token_account.to_account_info(),
+                authority: ctx.accounts.fee_vault_authority.to_account_info(),
+                mint: ctx.accounts.input_mint.to_account_info(),
+            },
+            fee_vault_authority_signer_seeds,
+        ),
+        amount,
+        ctx.accounts.input_mint.decimals,
+    )?;
+    
+    // Store initial balance of output token account
     let out_token_balance_before = ctx.accounts.vault_output_token_account.amount;
     
+    // Execute Jupiter swap
     let accounts: Box<Vec<AccountMeta>> = Box::new(
         ctx.remaining_accounts
             .iter()
@@ -291,27 +362,30 @@ fn execute_jupiter_swap(ctx: &mut Context<Swap>, data: &[u8]) -> Result<u64> {
         &anchor_lang::solana_program::instruction::Instruction {
             program_id: ctx.accounts.jupiter_program.key(),
             accounts: accounts.to_vec(),
-            data: data.to_vec(),
+            data: swap_data.to_vec(),
         },
         ctx.remaining_accounts,
         &[&[VAULT_SEED, &[ctx.bumps.vault]]],
     )?;
     
+    // Calculate USDC received from swap
     ctx.accounts.vault_output_token_account.reload()?;
     let usdc_received = ctx.accounts.vault_output_token_account.amount
         .checked_sub(out_token_balance_before)
         .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
-        
+    
     Ok(usdc_received)
 }
 
 fn process_swap_fees(ctx: &mut Context<Swap>, usdc_received: u64) -> Result<()> {
+    // Calculate withdrawal fee
     let withdrawal_fee_basis_points = ctx.accounts.ecosystem_config.withdrawal_fee_basis_points;
     let fee_amount = calculate_fee(usdc_received, withdrawal_fee_basis_points)?;
     let fee_amount = if withdrawal_fee_basis_points > 0 && fee_amount == 0 { 1 } else { fee_amount };
     let amount_to_transfer = usdc_received.checked_sub(fee_amount)
         .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
+    // Convert fee amount to SP tokens
     let sp_amount = fee_amount
         .checked_mul(SP_PER_USDC)
         .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
@@ -323,6 +397,7 @@ fn process_swap_fees(ctx: &mut Context<Swap>, usdc_received: u64) -> Result<()> 
     ];
     let sp_signers = [&sp_signer_seeds[..]];
     
+    // Mint SP tokens to SP vault
     anchor_spl::token_2022::mint_to(
         CpiContext::new_with_signer(
             ctx.accounts.sp_token_program.to_account_info(),
@@ -336,10 +411,12 @@ fn process_swap_fees(ctx: &mut Context<Swap>, usdc_received: u64) -> Result<()> 
         sp_amount,
     )?;
     
+    // Update collected fees SP amount
     ctx.accounts.ecosystem_config.collected_fees_sp = ctx.accounts.ecosystem_config.collected_fees_sp
         .checked_add(sp_amount)
         .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
+    // Transfer remaining USDC to merchant
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new_with_signer(
             ctx.accounts.output_mint_program.to_account_info(),
@@ -428,101 +505,15 @@ pub mod token_deployer {
         Ok(())
     }
 
-    pub fn deposit_ecosystem<'info>(ctx: Context<DepositEcosystem>, amount: u64, swap_data: Vec<u8>) -> Result<()> {
-        let mut ctx = Box::new(ctx); // Box the Context to reduce stack usage
+    pub fn deposit_ecosystem(ctx: Context<DepositEcosystem>, amount: u64, swap_data: Vec<u8>) -> Result<()> {
+        let mut ctx = Box::new(ctx); // Changed to mut
         validate_deposit(&ctx, amount)?;
         
         let deposit_fee_basis_points = ctx.accounts.ecosystem_config.deposit_fee_basis_points;
         let fee_amount = calculate_fee(amount, deposit_fee_basis_points)?;
         
         if fee_amount > 0 {
-            // First transfer fee amount to vault_input_token_account for Jupiter swap
-            let mint_key = ctx.accounts.mint.key();
-            let mint_key_ref = mint_key.as_ref();
-            let fee_vault_authority_seeds = &[
-                b"fee_vault_authority".as_ref(),
-                mint_key_ref,
-                &[ctx.bumps.fee_vault_authority],
-            ];
-            let fee_vault_authority_signer_seeds = &[&fee_vault_authority_seeds[..]];
-            
-            // Transfer fee amount from user to vault_input_token_account
-            anchor_spl::token_interface::transfer_checked(
-                CpiContext::new_with_signer(
-                    ctx.accounts.collateral_token_program.to_account_info(),
-                    anchor_spl::token_interface::TransferChecked {
-                        from: ctx.accounts.user_collateral_account.to_account_info(),
-                        to: ctx.accounts.vault_input_token_account.to_account_info(),
-                        authority: ctx.accounts.fee_vault_authority.to_account_info(),
-                        mint: ctx.accounts.collateral_token_mint.to_account_info(),
-                    },
-                    fee_vault_authority_signer_seeds,
-                ),
-                fee_amount,
-                ctx.accounts.collateral_token_mint.decimals,
-            )?;
-            
-            // Store initial balance of USDC output account
-            let out_token_balance_before = ctx.accounts.vault_output_token_account.amount;
-            
-            // Execute Jupiter swap to convert collateral token to USDC
-            let accounts: Box<Vec<AccountMeta>> = Box::new(
-                ctx.remaining_accounts
-                    .iter()
-                    .map(|acc| AccountMeta {
-                        pubkey: *acc.key,
-                        is_signer: acc.key == &ctx.accounts.vault.key(),
-                        is_writable: acc.is_writable,
-                    })
-                    .collect()
-            );
-            
-            anchor_lang::solana_program::program::invoke_signed(
-                &anchor_lang::solana_program::instruction::Instruction {
-                    program_id: ctx.accounts.jupiter_program.key(),
-                    accounts: accounts.to_vec(),
-                    data: swap_data.to_vec(),
-                },
-                ctx.remaining_accounts,
-                &[&[VAULT_SEED, &[ctx.bumps.vault]]],
-            )?;
-            
-            // Calculate USDC received from swap
-            ctx.accounts.vault_output_token_account.reload()?;
-            let usdc_received = ctx.accounts.vault_output_token_account.amount
-                .checked_sub(out_token_balance_before)
-                .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
-            
-            // Convert USDC to SP tokens and store them
-            let sp_amount = usdc_received
-                .checked_mul(SP_PER_USDC)
-                .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
-            
-            let sp_bump = ctx.bumps.sp_mint_authority;
-            let sp_signer_seeds = [
-                b"sp_mint_authority".as_ref(),
-                &[sp_bump][..],
-            ];
-            let sp_signers = [&sp_signer_seeds[..]];
-            
-            // Mint SP tokens to SP vault
-            anchor_spl::token_2022::mint_to(
-                CpiContext::new_with_signer(
-                    ctx.accounts.sp_token_program.to_account_info(),
-                    anchor_spl::token_2022::MintTo {
-                        mint: ctx.accounts.sp_token_mint.to_account_info(),
-                        to: ctx.accounts.sp_vault.to_account_info(),
-                        authority: ctx.accounts.sp_mint_authority.to_account_info(),
-                    },
-                    &sp_signers,
-                ),
-                sp_amount,
-            )?;
-            
-            // Update collected fees SP amount
-            ctx.accounts.ecosystem_config.collected_fees_sp = ctx.accounts.ecosystem_config.collected_fees_sp
-                .checked_add(sp_amount)
-                .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
+            process_fee(&mut ctx, fee_amount, &swap_data)?;
         }
         
         // Process remaining amount (amount - fee)
@@ -633,18 +624,13 @@ pub mod token_deployer {
         Ok(())
     }
 
-    pub fn swap(ctx: Context<Swap>, amount: u64, purchase_reference: String, data: Vec<u8>) -> Result<()> {
-        let mut ctx = Box::new(ctx); // Box the Context to reduce stack usage
+    pub fn swap(ctx: Context<Swap>, amount: u64, purchase_reference: String, swap_data: Vec<u8>) -> Result<()> {
+        let mut ctx = Box::new(ctx); // Changed to mut
         validate_swap(&ctx, amount, &purchase_reference)?;
 
         let merchant_wallet = ctx.accounts.merchant_wallet.key();
 
-        msg!("amount: {}", amount);
-        msg!("merchant_wallet: {}", merchant_wallet);
-        msg!("purchase_reference: {}", purchase_reference);
-        
-        process_swap_transfer(&ctx, amount)?;
-        
+        // Burn the ecosystem tokens
         anchor_spl::token_interface::burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -657,10 +643,13 @@ pub mod token_deployer {
             amount,
         )?;
         
-        let usdc_received = execute_jupiter_swap(&mut ctx, &data)?;
+        // Execute Jupiter swap and get USDC received
+        let usdc_received = process_jupiter_swap(&mut ctx, amount, &swap_data)?;
         
+        // Process swap fees and transfer to merchant
         process_swap_fees(&mut ctx, usdc_received)?;
         
+        // Update merchant balance
         ctx.accounts.merchant_balance.balance = ctx.accounts.merchant_balance.balance
             .checked_add(usdc_received)
             .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
