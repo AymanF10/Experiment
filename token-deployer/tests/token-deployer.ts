@@ -50,8 +50,56 @@ describe("token-deployer with transfer hook", () => {
   let whitelistStatusPda;
 
   async function mintTokensWithPartner(amount) {
+    // Create empty swap data for Jupiter
+    const swap_data = Buffer.from([]);
+    
+    // Get Jupiter program ID
+    const jupiterProgramId = new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+    
+    // Get USDC mint
+    const usdcMint = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+    
+    // Get vault PDA
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault")],
+      tokenDeployerProgram.programId
+    );
+    
+    // Get vault input token account (for collateral)
+    const vaultInputTokenAccount = getAssociatedTokenAddressSync(
+      collateralMintKeypair.publicKey,
+      vaultPda,
+      false,
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    // Get vault output token account (for USDC)
+    const vaultOutputTokenAccount = getAssociatedTokenAddressSync(
+      usdcMint,
+      vaultPda,
+      false,
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    // Get SP token mint
+    const spTokenMint = new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC");
+    
+    // Get SP mint authority PDA
+    const [spMintAuthorityPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_mint_authority")],
+      tokenDeployerProgram.programId
+    );
+    
+    // Get SP vault PDA
+    const [spVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
     return tokenDeployerProgram.methods
-      .depositEcosystem(new anchor.BN(amount))
+      .depositEcosystem(new anchor.BN(amount), swap_data)
       .accounts({
         payer: ecosystemPartnerKeypair.publicKey,
         config: configPda,
@@ -65,6 +113,17 @@ describe("token-deployer with transfer hook", () => {
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        jupiterProgram: jupiterProgramId,
+        vault: vaultPda,
+        vaultInputTokenAccount: vaultInputTokenAccount,
+        vaultOutputTokenAccount: vaultOutputTokenAccount,
+        usdcMint: usdcMint,
+        usdcTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: spTokenMint,
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spMintAuthority: spMintAuthorityPda,
+        spVault: spVaultPda,
+        systemProgram: SystemProgram.programId,
       })
       .signers([ecosystemPartnerKeypair])
       .rpc({ commitment: "confirmed" });
@@ -243,6 +302,21 @@ describe("token-deployer with transfer hook", () => {
       tokenDeployerProgram.programId
     );
 
+    // Get SP token mint
+    const spTokenMint = new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC");
+    
+    // Get SP mint authority PDA
+    const [spMintAuthorityPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_mint_authority")],
+      tokenDeployerProgram.programId
+    );
+    
+    // Get SP vault PDA
+    const [spVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+
     await tokenDeployerProgram.methods
       .createEcosystem({
         decimals,
@@ -268,7 +342,12 @@ describe("token-deployer with transfer hook", () => {
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: spTokenMint,
+        spMintAuthority: spMintAuthorityPda,
+        spVault: spVaultPda,
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
       .signers([mintKeypair])
       .rpc({ commitment: "confirmed" });
@@ -387,7 +466,7 @@ describe("token-deployer with transfer hook", () => {
     );
     
     const unauthorizedMintTx = tokenDeployerProgram.methods
-      .depositEcosystem(new anchor.BN(mintAmount))
+      .depositEcosystem(new anchor.BN(mintAmount), Buffer.from([]))
       .accounts({
         payer: unauthorizedWalletKeypair.publicKey,
         config: configPda,
@@ -401,6 +480,44 @@ describe("token-deployer with transfer hook", () => {
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        jupiterProgram: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
+        vault: PublicKey.findProgramAddressSync(
+          [Buffer.from("vault")],
+          tokenDeployerProgram.programId
+        )[0],
+        vaultInputTokenAccount: getAssociatedTokenAddressSync(
+          collateralMintKeypair.publicKey,
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        vaultOutputTokenAccount: getAssociatedTokenAddressSync(
+          new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        usdcMint: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+        usdcTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC"),
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spMintAuthority: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_mint_authority")],
+          tokenDeployerProgram.programId
+        )[0],
+        spVault: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+          tokenDeployerProgram.programId
+        )[0],
+        systemProgram: SystemProgram.programId,
       })
       .signers([unauthorizedWalletKeypair]);
     
@@ -450,7 +567,7 @@ describe("token-deployer with transfer hook", () => {
     );;
     const exceedCapAmount = new anchor.BN(1000 * 10 ** decimals);
     const exceedCapTx = tokenDeployerProgram.methods
-      .depositEcosystem(exceedCapAmount)
+      .depositEcosystem(exceedCapAmount, Buffer.from([]))
       .accounts({
         payer: ecosystemPartnerKeypair.publicKey,
         config: configPda,
@@ -464,6 +581,44 @@ describe("token-deployer with transfer hook", () => {
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        jupiterProgram: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
+        vault: PublicKey.findProgramAddressSync(
+          [Buffer.from("vault")],
+          tokenDeployerProgram.programId
+        )[0],
+        vaultInputTokenAccount: getAssociatedTokenAddressSync(
+          collateralMintKeypair.publicKey,
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        vaultOutputTokenAccount: getAssociatedTokenAddressSync(
+          new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        usdcMint: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+        usdcTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC"),
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spMintAuthority: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_mint_authority")],
+          tokenDeployerProgram.programId
+        )[0],
+        spVault: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+          tokenDeployerProgram.programId
+        )[0],
+        systemProgram: SystemProgram.programId,
       })
       .signers([ecosystemPartnerKeypair]);
       
@@ -482,11 +637,48 @@ describe("token-deployer with transfer hook", () => {
 
     await mintTokensWithPartner(mintAmount);
     
-    const feeVaultBeforeCollection = await connection.getTokenAccountBalance(
-      feeVaultPda,
+    // Get SP token mint
+    const spTokenMint = new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC");
+    
+    // Get SP vault PDA
+    const [spVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
+    // Create SP destination account for owner
+    const spDestinationAccount = getAssociatedTokenAddressSync(
+      spTokenMint,
+      wallet.publicKey,
+      false,
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    try {
+      await connection.getTokenAccountBalance(spDestinationAccount);
+    } catch (error) {
+      const createSpDestTx = new Transaction().add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          spDestinationAccount,
+          wallet.publicKey,
+          spTokenMint,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+      await sendAndConfirmTransaction(connection, createSpDestTx, [wallet.payer], {
+        commitment: "confirmed",
+      });
+    }
+    
+    // Check SP vault balance before collection
+    const spVaultBeforeCollection = await connection.getTokenAccountBalance(
+      spVaultPda,
       "confirmed"
     );
-    console.log("Fee vault balance before ", feeVaultBeforeCollection.value.uiAmount);
+    console.log("SP vault balance before ", spVaultBeforeCollection.value.uiAmount);
     
     try {
       await connection.getTokenAccountBalance(walletCollateralAccount);
@@ -519,29 +711,34 @@ describe("token-deployer with transfer hook", () => {
         destinationAccount: walletCollateralAccount,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: spTokenMint,
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spVault: spVaultPda,
+        spDestinationAccount: spDestinationAccount
       })
       .rpc({ commitment: "confirmed" });
     
-    const feeVaultAfterCollection = await connection.getTokenAccountBalance(
-      feeVaultPda,
+    // Check SP vault balance after collection
+    const spVaultAfterCollection = await connection.getTokenAccountBalance(
+      spVaultPda,
       "confirmed"
     );
-    console.log("Fee vault balance after ", feeVaultAfterCollection.value.uiAmount);
+    console.log("SP vault balance after ", spVaultAfterCollection.value.uiAmount);
     assert.equal(
-      Number(feeVaultAfterCollection.value.amount),
+      Number(spVaultAfterCollection.value.amount),
       0,
-      "Fee vault should be empty after collection"
+      "SP vault should be empty after collection"
     );
     
-    const walletBalanceAfterCollection = await connection.getTokenAccountBalance(
-      walletCollateralAccount,
+    // Check SP destination account balance
+    const spDestinationBalance = await connection.getTokenAccountBalance(
+      spDestinationAccount,
       "confirmed"
     );
-    console.log("Updated owner balance ", walletBalanceAfterCollection.value.uiAmount);
-    console.log("Fees collected ", Number(walletBalanceAfterCollection.value.amount) - Number(initialWalletBalance.value.amount));
+    console.log("SP tokens collected ", spDestinationBalance.value.uiAmount);
     assert(
-      Number(walletBalanceAfterCollection.value.amount) > Number(initialWalletBalance.value.amount),
-      "Destination account should have received the fees"
+      Number(spDestinationBalance.value.amount) > 0,
+      "SP destination account should have received SP tokens"
     );
     
     console.log("Empty vault fee collection (should fail): ");
@@ -558,6 +755,10 @@ describe("token-deployer with transfer hook", () => {
         destinationAccount: walletCollateralAccount,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: spTokenMint,
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spVault: spVaultPda,
+        spDestinationAccount: spDestinationAccount
       });
       
     const emptyCollectionFailed = await expectTxToFail(emptyCollectionTx.rpc({ commitment: "confirmed" }));
@@ -567,11 +768,48 @@ describe("token-deployer with transfer hook", () => {
   it("Collecting fees", async () => {
     await mintTokensWithPartner(150 * 10 ** decimals);
     
-    const feeVaultBalance = await connection.getTokenAccountBalance(
-      feeVaultPda,
+    // Get SP token mint
+    const spTokenMint = new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC");
+    
+    // Get SP vault PDA
+    const [spVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
+    // Check SP vault balance
+    const spVaultBalance = await connection.getTokenAccountBalance(
+      spVaultPda,
       "confirmed"
     );
-    console.log("Fee vault balance: ", feeVaultBalance.value.uiAmount);
+    console.log("SP vault balance: ", spVaultBalance.value.uiAmount);
+    
+    // Create SP destination account for unauthorized user
+    const unauthorizedSpAccount = getAssociatedTokenAddressSync(
+      spTokenMint,
+      unauthorizedWalletKeypair.publicKey,
+      false,
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    try {
+      await connection.getTokenAccountBalance(unauthorizedSpAccount);
+    } catch (error) {
+      const createUnauthorizedSpTx = new Transaction().add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          unauthorizedSpAccount,
+          unauthorizedWalletKeypair.publicKey,
+          spTokenMint,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+      await sendAndConfirmTransaction(connection, createUnauthorizedSpTx, [wallet.payer], {
+        commitment: "confirmed",
+      });
+    }
     
     try {
       await connection.getTokenAccountBalance(unauthorizedCollateralAccount);
@@ -605,6 +843,10 @@ describe("token-deployer with transfer hook", () => {
         destinationAccount: unauthorizedCollateralAccount,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: spTokenMint,
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spVault: spVaultPda,
+        spDestinationAccount: unauthorizedSpAccount
       })
       .signers([unauthorizedWalletKeypair]);
     
@@ -734,7 +976,7 @@ describe("token-deployer with transfer hook", () => {
     
     console.log("Testing mint with global freeze (it should fail): ");
     const globalFreezeMintTx = tokenDeployerProgram.methods
-      .depositEcosystem(new anchor.BN(mintAmount))
+      .depositEcosystem(new anchor.BN(mintAmount), Buffer.from([]))
       .accounts({
         payer: ecosystemPartnerKeypair.publicKey,
         config: configPda,
@@ -748,6 +990,44 @@ describe("token-deployer with transfer hook", () => {
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        jupiterProgram: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
+        vault: PublicKey.findProgramAddressSync(
+          [Buffer.from("vault")],
+          tokenDeployerProgram.programId
+        )[0],
+        vaultInputTokenAccount: getAssociatedTokenAddressSync(
+          collateralMintKeypair.publicKey,
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        vaultOutputTokenAccount: getAssociatedTokenAddressSync(
+          new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        usdcMint: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+        usdcTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC"),
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spMintAuthority: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_mint_authority")],
+          tokenDeployerProgram.programId
+        )[0],
+        spVault: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+          tokenDeployerProgram.programId
+        )[0],
+        systemProgram: SystemProgram.programId,
       })
       .signers([ecosystemPartnerKeypair]);
     
@@ -778,7 +1058,7 @@ describe("token-deployer with transfer hook", () => {
     
     console.log("Trying mint during ecosystem freeze (should fail): ");
     const ecosystemFreezeMintTx = tokenDeployerProgram.methods
-      .depositEcosystem(new anchor.BN(mintAmount))
+      .depositEcosystem(new anchor.BN(mintAmount), Buffer.from([]))
       .accounts({
         payer: ecosystemPartnerKeypair.publicKey,
         config: configPda,
@@ -792,6 +1072,44 @@ describe("token-deployer with transfer hook", () => {
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        jupiterProgram: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
+        vault: PublicKey.findProgramAddressSync(
+          [Buffer.from("vault")],
+          tokenDeployerProgram.programId
+        )[0],
+        vaultInputTokenAccount: getAssociatedTokenAddressSync(
+          collateralMintKeypair.publicKey,
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        vaultOutputTokenAccount: getAssociatedTokenAddressSync(
+          new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+          PublicKey.findProgramAddressSync(
+            [Buffer.from("vault")],
+            tokenDeployerProgram.programId
+          )[0],
+          false,
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        usdcMint: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+        usdcTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spTokenMint: new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC"),
+        spTokenProgram: TOKEN_2022_PROGRAM_ID,
+        spMintAuthority: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_mint_authority")],
+          tokenDeployerProgram.programId
+        )[0],
+        spVault: PublicKey.findProgramAddressSync(
+          [Buffer.from("sp_vault"), mintKeypair.publicKey.toBuffer()],
+          tokenDeployerProgram.programId
+        )[0],
+        systemProgram: SystemProgram.programId,
       })
       .signers([ecosystemPartnerKeypair]);
     
