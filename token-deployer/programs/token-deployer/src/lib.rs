@@ -57,7 +57,7 @@ fn validate_deposit(ctx: &Context<DepositEcosystem>, amount: u64) -> Result<()> 
     let max_minting_cap = ctx.accounts.ecosystem_config.max_minting_cap;
     
     require!(
-        current_supply.checked_add(amount).ok_or(ErrorCode::ArithmeticOverflow)? <= max_minting_cap,
+        current_supply.checked_add(amount).ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())? <= max_minting_cap,
         ErrorCode::ExceedsMaximumCap
     );
     
@@ -106,9 +106,9 @@ fn validate_swap(ctx: &Context<Swap>, amount: u64, purchase_reference: &str) -> 
 fn calculate_fee(amount: u64, fee_basis_points: u16) -> Result<u64> {
     amount
         .checked_mul(fee_basis_points as u64)
-        .ok_or(ErrorCode::ArithmeticOverflow.into())?
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?
         .checked_div(10000)
-        .ok_or(ErrorCode::ArithmeticOverflow.into())
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())
 }
 
 fn process_fee(ctx: &mut Context<DepositEcosystem>, fee_amount: u64, swap_data: &[u8]) -> Result<()> {
@@ -164,7 +164,7 @@ fn process_fee(ctx: &mut Context<DepositEcosystem>, fee_amount: u64, swap_data: 
     ctx.accounts.vault_output_token_account.reload()?;
     let usdc_received = ctx.accounts.vault_output_token_account.amount
         .checked_sub(out_token_balance_before)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
         
     process_sp_tokens(ctx, usdc_received)?;
     
@@ -174,7 +174,7 @@ fn process_fee(ctx: &mut Context<DepositEcosystem>, fee_amount: u64, swap_data: 
 fn process_sp_tokens(ctx: &mut Context<DepositEcosystem>, usdc_amount: u64) -> Result<()> {
     let sp_amount = usdc_amount
         .checked_mul(SP_PER_USDC)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
         
     let sp_bump = ctx.bumps.sp_mint_authority;
     let sp_signer_seeds = [
@@ -198,13 +198,14 @@ fn process_sp_tokens(ctx: &mut Context<DepositEcosystem>, usdc_amount: u64) -> R
     
     ctx.accounts.ecosystem_config.collected_fees_sp = ctx.accounts.ecosystem_config.collected_fees_sp
         .checked_add(sp_amount)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
     Ok(())
 }
 
 fn process_remaining_amount(ctx: &mut Context<DepositEcosystem>, amount: u64, fee_amount: u64) -> Result<()> {
-    let remaining_amount = amount.checked_sub(fee_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let remaining_amount = amount.checked_sub(fee_amount)
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new(
@@ -299,7 +300,7 @@ fn execute_jupiter_swap(ctx: &mut Context<Swap>, data: &[u8]) -> Result<u64> {
     ctx.accounts.vault_output_token_account.reload()?;
     let usdc_received = ctx.accounts.vault_output_token_account.amount
         .checked_sub(out_token_balance_before)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
         
     Ok(usdc_received)
 }
@@ -308,11 +309,12 @@ fn process_swap_fees(ctx: &mut Context<Swap>, usdc_received: u64) -> Result<()> 
     let withdrawal_fee_basis_points = ctx.accounts.ecosystem_config.withdrawal_fee_basis_points;
     let fee_amount = calculate_fee(usdc_received, withdrawal_fee_basis_points)?;
     let fee_amount = if withdrawal_fee_basis_points > 0 && fee_amount == 0 { 1 } else { fee_amount };
-    let amount_to_transfer = usdc_received.checked_sub(fee_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
+    let amount_to_transfer = usdc_received.checked_sub(fee_amount)
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
     let sp_amount = fee_amount
         .checked_mul(SP_PER_USDC)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
     let sp_bump = ctx.bumps.sp_mint_authority;
     let sp_signer_seeds = [
@@ -336,7 +338,7 @@ fn process_swap_fees(ctx: &mut Context<Swap>, usdc_received: u64) -> Result<()> 
     
     ctx.accounts.ecosystem_config.collected_fees_sp = ctx.accounts.ecosystem_config.collected_fees_sp
         .checked_add(sp_amount)
-        .ok_or(ErrorCode::ArithmeticOverflow)?;
+        .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
     
     anchor_spl::token_interface::transfer_checked(
         CpiContext::new_with_signer(
@@ -434,9 +436,96 @@ pub mod token_deployer {
         let fee_amount = calculate_fee(amount, deposit_fee_basis_points)?;
         
         if fee_amount > 0 {
-            process_fee(&mut ctx, fee_amount, &swap_data)?;
+            // First transfer fee amount to vault_input_token_account for Jupiter swap
+            let mint_key = ctx.accounts.mint.key();
+            let mint_key_ref = mint_key.as_ref();
+            let fee_vault_authority_seeds = &[
+                b"fee_vault_authority".as_ref(),
+                mint_key_ref,
+                &[ctx.bumps.fee_vault_authority],
+            ];
+            let fee_vault_authority_signer_seeds = &[&fee_vault_authority_seeds[..]];
+            
+            // Transfer fee amount from user to vault_input_token_account
+            anchor_spl::token_interface::transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.collateral_token_program.to_account_info(),
+                    anchor_spl::token_interface::TransferChecked {
+                        from: ctx.accounts.user_collateral_account.to_account_info(),
+                        to: ctx.accounts.vault_input_token_account.to_account_info(),
+                        authority: ctx.accounts.fee_vault_authority.to_account_info(),
+                        mint: ctx.accounts.collateral_token_mint.to_account_info(),
+                    },
+                    fee_vault_authority_signer_seeds,
+                ),
+                fee_amount,
+                ctx.accounts.collateral_token_mint.decimals,
+            )?;
+            
+            // Store initial balance of USDC output account
+            let out_token_balance_before = ctx.accounts.vault_output_token_account.amount;
+            
+            // Execute Jupiter swap to convert collateral token to USDC
+            let accounts: Box<Vec<AccountMeta>> = Box::new(
+                ctx.remaining_accounts
+                    .iter()
+                    .map(|acc| AccountMeta {
+                        pubkey: *acc.key,
+                        is_signer: acc.key == &ctx.accounts.vault.key(),
+                        is_writable: acc.is_writable,
+                    })
+                    .collect()
+            );
+            
+            anchor_lang::solana_program::program::invoke_signed(
+                &anchor_lang::solana_program::instruction::Instruction {
+                    program_id: ctx.accounts.jupiter_program.key(),
+                    accounts: accounts.to_vec(),
+                    data: swap_data.to_vec(),
+                },
+                ctx.remaining_accounts,
+                &[&[VAULT_SEED, &[ctx.bumps.vault]]],
+            )?;
+            
+            // Calculate USDC received from swap
+            ctx.accounts.vault_output_token_account.reload()?;
+            let usdc_received = ctx.accounts.vault_output_token_account.amount
+                .checked_sub(out_token_balance_before)
+                .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
+            
+            // Convert USDC to SP tokens and store them
+            let sp_amount = usdc_received
+                .checked_mul(SP_PER_USDC)
+                .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
+            
+            let sp_bump = ctx.bumps.sp_mint_authority;
+            let sp_signer_seeds = [
+                b"sp_mint_authority".as_ref(),
+                &[sp_bump][..],
+            ];
+            let sp_signers = [&sp_signer_seeds[..]];
+            
+            // Mint SP tokens to SP vault
+            anchor_spl::token_2022::mint_to(
+                CpiContext::new_with_signer(
+                    ctx.accounts.sp_token_program.to_account_info(),
+                    anchor_spl::token_2022::MintTo {
+                        mint: ctx.accounts.sp_token_mint.to_account_info(),
+                        to: ctx.accounts.sp_vault.to_account_info(),
+                        authority: ctx.accounts.sp_mint_authority.to_account_info(),
+                    },
+                    &sp_signers,
+                ),
+                sp_amount,
+            )?;
+            
+            // Update collected fees SP amount
+            ctx.accounts.ecosystem_config.collected_fees_sp = ctx.accounts.ecosystem_config.collected_fees_sp
+                .checked_add(sp_amount)
+                .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
         }
         
+        // Process remaining amount (amount - fee)
         process_remaining_amount(&mut ctx, amount, fee_amount)?;
         
         emit!(EcosystemDeposited {
@@ -574,7 +663,7 @@ pub mod token_deployer {
         
         ctx.accounts.merchant_balance.balance = ctx.accounts.merchant_balance.balance
             .checked_add(usdc_received)
-            .ok_or(ErrorCode::ArithmeticOverflow)?;
+            .ok_or::<anchor_lang::error::Error>(ErrorCode::ArithmeticOverflow.into())?;
         
         emit!(PurchaseProcessed {
             ecosystem_mint: ctx.accounts.mint.key(),
@@ -831,9 +920,6 @@ pub struct DepositEcosystem<'info> {
         mut,
         seeds = [b"sp_vault", mint.key().as_ref()],
         bump,
-        token::mint = sp_token_mint,
-        token::authority = fee_vault_authority,
-        token::token_program = sp_token_program,
     )]
     pub sp_vault: InterfaceAccount<'info, TokenAccount>,
     
