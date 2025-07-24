@@ -9,13 +9,13 @@ use anchor_spl::token_2022::{
 };
 use anchor_spl::{token_interface::{
     transfer_checked, TransferChecked,
-    Mint as Mint2022, TokenAccount as TokenAccount2022, burn, Burn, TokenInterface
+    Mint, TokenAccount, burn, Burn, TokenInterface
 },
-    token::{
+    /*token::{
         Mint,
         Token,
         TokenAccount
-    }};
+    }*/};
 
 use std::str::FromStr;
 
@@ -71,6 +71,8 @@ pub fn token2022_program_id() -> Pubkey {
 
 #[program]
 pub mod token_deployer {
+    use anchor_spl::token_2022::spl_token_2022::instruction::AuthorityType;
+
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -196,11 +198,11 @@ pub mod token_deployer {
             ErrorCode::Unauthorized
         );
         require!(
-            ctx.accounts.to_ata.mint == ctx.accounts.mint.key(),
+            ctx.accounts.to_ata.mint == ctx.accounts.mint_account.key(),
             ErrorCode::InvalidToken
         );
         
-        let current_supply = ctx.accounts.mint.supply;
+        let current_supply = ctx.accounts.mint_account.supply;
         let max_minting_cap = ctx.accounts.ecosystem_config.max_minting_cap;
         let deposit_fee_basis_points = ctx.accounts.ecosystem_config.deposit_fee_basis_points;
         
@@ -234,14 +236,14 @@ pub mod token_deployer {
         }
         
         let cpi_accounts = MintTo {
-            mint: ctx.accounts.mint.to_account_info(),
+            mint: ctx.accounts.mint_account.to_account_info(),
             to: ctx.accounts.to_ata.to_account_info(),
             authority: ctx.accounts.mint_authority.to_account_info(),
         };
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
         
-        let mint_key = ctx.accounts.mint.key();
+        let mint_key = ctx.accounts.mint_account.key();
         let bump = ctx.bumps.mint_authority;
         
         let signer_seeds = [
@@ -301,7 +303,19 @@ pub mod token_deployer {
         /// CPI into the SP mint_tokens instruction
         let sp_mint_accounts = MintTokens{
             signer: ctx.accounts.payer.to_account_info(),
-            usdc_mint: ,
+            usdc_mint: todo!(),
+            usdc_keeper: todo!(),
+            mint: todo!(),
+            to_ata: todo!(),
+            usdc_from_ata: todo!(),
+            fees: todo!(),
+            fee_collector: todo!(),
+            freeze_state: todo!(),
+            white_list_status: todo!(),
+            system_program: todo!(),
+            token_program: todo!(),
+            token_program2022: todo!(),
+            associated_token_program: todo!()
         };
         if fee_amount > 0 {
             transfer_checked(
@@ -326,7 +340,7 @@ pub mod token_deployer {
         }
         
         emit!(EcosystemDeposited {
-            ecosystem_mint: ctx.accounts.mint.key(),
+            ecosystem_mint: ctx.accounts.mint_account.key(),
             depositor: ctx.accounts.payer.key(),
             amount,
             fee: fee_amount,
@@ -776,23 +790,23 @@ pub struct CreateEcosystem<'info> {
     
     /// CHECK: PDA for fee vault authority
     #[account(
-        seeds = [b"fee_vault_authority", sp_mint.key().as_ref()],
+        seeds = [b"fee_vault_authority", mint_account.key().as_ref()],
         bump,
     )]
-    pub sp_fee_vault_authority: AccountInfo<'info>,
+    pub fee_vault_authority: AccountInfo<'info>,
     
     pub collateral_token_mint: InterfaceAccount<'info, Mint>,
     
     #[account(
         init,
         payer = payer,
-        seeds = [b"fee_vault", sp_mint.key().as_ref()],
+        seeds = [b"fee_vault", mint_account.key().as_ref()],
         bump,
-        token::mint = sp_mint,
-        token::authority = sp_fee_vault_authority,
-        token::token_program = token_program,
+        token::mint = sp_mint,// Changing mint to SP Tokens instead
+        token::authority = fee_vault_authority,
+        token::token_program = token_program,// Changing from collateral token program to token program
     )]
-    pub sp_fee_vault: InterfaceAccount<'info, TokenAccount>,
+    pub fee_vault: InterfaceAccount<'info, TokenAccount>,
     
     #[account(
         init,
@@ -800,7 +814,7 @@ pub struct CreateEcosystem<'info> {
         seeds = [b"collateral_vault", mint_account.key().as_ref()],
         bump,
         token::mint = collateral_token_mint,
-        token::authority = mint_authority,
+        token::authority = fee_vault_authority,
         token::token_program = collateral_token_program,
     )]
     pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
@@ -832,29 +846,22 @@ pub struct DepositEcosystem<'info> {
     )]
     pub config: Account<'info, Config>,
     
-    #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(mut)]// Token For Collateralization
+    pub mint_account: InterfaceAccount<'info, Mint>,
     
     /// CHECK: This is a PDA used as the mint authority
     #[account(
-        seeds = [b"mint_authority", mint.key().as_ref()],
+        seeds = [b"mint_authority", mint_account.key().as_ref()],
         bump,
     )]
     pub mint_authority: AccountInfo<'info>,
-
-    /// CHECK: This is a PDA used as the sp_mint authority
-    #[account(
-        seeds = [b"sp_mint_authority", sp_mint.key().as_ref()],
-        bump,
-    )]
-    pub sp_mint_authority: AccountInfo<'info>,
     
-    #[account(mut)]
+    #[account(mut)]// To Receive Ecosystem Mint
     pub to_ata: InterfaceAccount<'info, TokenAccount>,
     
     #[account(
         mut,
-        seeds = [b"ecosystem_config", mint.key().as_ref()],
+        seeds = [b"ecosystem_config", mint_account.key().as_ref()],
         bump,
         constraint = ecosystem_config.ecosystem_partner_wallet == payer.key() @ ErrorCode::Unauthorized
     )]
@@ -871,20 +878,13 @@ pub struct DepositEcosystem<'info> {
     
     #[account(
         mut,
-        seeds = [b"fee_vault", mint.key().as_ref()],
+        seeds = [b"fee_vault", mint_account.key().as_ref()],
         bump,
-    )]
+    )]// Created with SP as the mint in CreateEcosystem
     pub fee_vault: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        seeds = [b"sp_fee_vault", sp_mint.key().as_ref()],
-        bump,
-    )]
-    pub sp_fee_vault: InterfaceAccount<'info, TokenAccount>,
-
+/* 
     #[account()]
-    pub sp_mint: InterfaceAccount<'info, Mint>,
+    pub sp_mint: InterfaceAccount<'info, Mint>,*/
 
     // Will receive the fees in usdc from the Jupiter Swap
     #[account(
@@ -893,15 +893,15 @@ pub struct DepositEcosystem<'info> {
         associated_token::authority = mint_authority
     )]
     pub usdc_receive_swap_ata: InterfaceAccount<'info, TokenAccount>,
- 
+ /* 
     #[account(
         address = USDC_MINT,
     )]
-    pub usdc_mint: Account<'info, Mint>,
+    pub usdc_mint: Account<'info, Mint>,*/
     
     #[account(
         mut,
-        seeds = [b"collateral_vault", mint.key().as_ref()],
+        seeds = [b"collateral_vault", mint_account.key().as_ref()],
         bump,
     )]
     pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
