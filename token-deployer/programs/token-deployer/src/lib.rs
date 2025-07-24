@@ -1,22 +1,50 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{instruction::Instruction, program::invoke_signed};
+use anchor_lang::prelude::Pubkey;
+use anchor_lang::pubkey;
+use anchor_lang::solana_program::{instruction::Instruction, program::{invoke_signed, invoke}};
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_2022::{
     set_authority, mint_to, Token2022,
     SetAuthority, MintTo,
 };
-use anchor_spl::token_interface::{
+use anchor_spl::{token_interface::{
     transfer_checked, TransferChecked,
     Mint, TokenAccount, burn, Burn, TokenInterface
-};
-use anchor_spl::token_2022::spl_token_2022::instruction::AuthorityType;
-use std::str::FromStr;
-use jupiter_aggregator::program::Jupiter;
+},
+    /*token::{
+        Mint,
+        Token,
+        TokenAccount
+    }*/};
 
+use std::str::FromStr;
+
+use jupiter_aggregator::program::Jupiter;
+use spree_points::{
+    accounts::*,
+    cpi::{
+        self,
+        accounts::*,
+    },
+    constants::*,
+    program::SpreePoints
+};
+
+
+declare_program!(spree_points);
 declare_program!(jupiter_aggregator);
+
 declare_id!("CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh");
 
+
+pub fn sp_program_id() -> Pubkey {
+    spree_points::ID
+}
+
 const VAULT_SEED: &[u8] = b"vault";
+pub static USDC_MINT: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const JUP_PROGRAM_ID: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+//const SP_PROGRAM_ID: &str = "3pVZ5as41wf864VxTiWXrMAuZYKsB7p4jGKgQ7e6WMwp";
 const USDC_MINT_STR: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const TOKEN_PROGRAM: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
@@ -39,6 +67,8 @@ pub fn token2022_program_id() -> Pubkey {
 
 #[program]
 pub mod token_deployer {
+    use anchor_spl::token_2022::spl_token_2022::instruction::AuthorityType;
+
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -148,7 +178,7 @@ pub mod token_deployer {
         Ok(())
     }
 
-    pub fn deposit_ecosystem(ctx: Context<DepositEcosystem>, amount: u64) -> Result<()> {
+    pub fn deposit_ecosystem(ctx: Context<DepositEcosystem>, amount: u64, swap_data: Vec<u8>) -> Result<()> {
         require!(amount > 0, ErrorCode::InvalidAmount);
 
         require!(
@@ -156,16 +186,19 @@ pub mod token_deployer {
             ErrorCode::FreezeStateActive
         );
 
+        require_keys_eq!(*ctx.accounts.jupiter_program.key, jupiter_program_id());
+        require_keys_eq!(*ctx.accounts.sp_program.key, sp_program_id());
+
         require!(
             ctx.accounts.to_ata.owner == ctx.accounts.payer.key(),
             ErrorCode::Unauthorized
         );
         require!(
-            ctx.accounts.to_ata.mint == ctx.accounts.mint.key(),
+            ctx.accounts.to_ata.mint == ctx.accounts.mint_account.key(),
             ErrorCode::InvalidToken
         );
         
-        let current_supply = ctx.accounts.mint.supply;
+        let current_supply = ctx.accounts.mint_account.supply;
         let max_minting_cap = ctx.accounts.ecosystem_config.max_minting_cap;
         let deposit_fee_basis_points = ctx.accounts.ecosystem_config.deposit_fee_basis_points;
         
@@ -179,28 +212,6 @@ pub mod token_deployer {
             .ok_or(ErrorCode::ArithmeticOverflow)?
             .checked_div(10000)
             .ok_or(ErrorCode::ArithmeticOverflow)?;
-                
-        if fee_amount > 0 {
-            transfer_checked(
-                CpiContext::new(
-                    ctx.accounts.collateral_token_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.user_collateral_account.to_account_info(),
-                        to: ctx.accounts.fee_vault.to_account_info(),
-                        authority: ctx.accounts.payer.to_account_info(),
-                        mint: ctx.accounts.collateral_token_mint.to_account_info(),
-                    },
-                ),
-                fee_amount,
-                ctx.accounts.collateral_token_mint.decimals,
-            )?;
-            
-            ctx.accounts.ecosystem_config.collected_fees = ctx.accounts.ecosystem_config.collected_fees
-                .checked_add(fee_amount)
-                .ok_or(ErrorCode::ArithmeticOverflow)?;
-                
-            msg!("Updated collected fees to: {}", ctx.accounts.ecosystem_config.collected_fees);
-        }
         
         let remaining_amount = amount.checked_sub(fee_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
         
@@ -221,14 +232,14 @@ pub mod token_deployer {
         }
         
         let cpi_accounts = MintTo {
-            mint: ctx.accounts.mint.to_account_info(),
+            mint: ctx.accounts.mint_account.to_account_info(),
             to: ctx.accounts.to_ata.to_account_info(),
             authority: ctx.accounts.mint_authority.to_account_info(),
         };
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
         
-        let mint_key = ctx.accounts.mint.key();
+        let mint_key = ctx.accounts.mint_account.key();
         let bump = ctx.bumps.mint_authority;
         
         let signer_seeds = [
@@ -246,17 +257,96 @@ pub mod token_deployer {
         );
 //Bug fix: collateralisation 1:1
         mint_to(cpi_context, remaining_amount)?;
+
+         // PUT SWAP FUNCTIONALITY HERE
+        ///@dev: 
+        /// The fee amount to be swapped will be the exact amount we will get Jupiter Quote for
+        /// Will be Done Client-side, during off-chain quote fetching
+        let usdc_fee_account_balance_before = ctx.accounts.usdc_receive_swap_ata.amount;
+        let jupiter_accounts: Vec<AccountMeta> = ctx.remaining_accounts
+            .iter()
+            .map(|acc|{
+                let is_signer = acc.key == &ctx.accounts.payer.key();
+                AccountMeta {
+                    pubkey: *acc.key,
+                    is_signer,
+                    is_writable: acc.is_writable
+                }
+            }).collect();
+
+        let account_infos: Vec<AccountInfo> = ctx.remaining_accounts
+            .iter()
+            .map(|acc| {
+                AccountInfo {..acc.clone()}
+            })
+            .collect();
         
+        let jupiter_instruction_data = Instruction {
+            program_id: ctx.accounts.jupiter_program.key(),
+            accounts: jupiter_accounts,
+            data: swap_data
+        };
+        // Actual cpi call via invoke, not invoke_signed because user is signing
+        invoke(
+            &jupiter_instruction_data,
+            &account_infos
+        )?;
+
+        let fee_in_usdc_after_swap = ctx.accounts.usdc_receive_swap_ata.amount
+            .checked_sub(usdc_fee_account_balance_before).unwrap();
+
+        // @dev: Now USDC fee is in usdc_receive_swap_ata
+        // CPI into the SP mint_tokens instruction
+        let sp_mint = &ctx.accounts.sp_mint;
+        let sp_mint_accounts = MintTokens{
+            signer: ctx.accounts.sp_mint_authority.to_account_info(),
+            usdc_mint: todo!(),
+            usdc_keeper: todo!(),
+            mint: sp_mint.to_account_info(),
+            to_ata: ctx.accounts.fee_vault.to_account_info(),
+            usdc_from_ata: ctx.accounts.usdc_receive_swap_ata.to_account_info(),
+            fees: todo!(),
+            fee_collector: todo!(),
+            freeze_state: todo!(),
+            white_list_status: todo!(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+            token_program: ctx.accounts.token_program_interface.to_account_info(),
+            token_program2022: ctx.accounts.token_program.to_account_info(),
+            associated_token_program: ctx.accounts.associated_token_program.to_account_info()
+        };
+        // Get Mint CPI context
+        // SP Minting Authority
+        let sp_mint_authority_seeds = &[
+            b"sp_mint_authority", sp_mint.key().as_ref(),
+            &[ctx.bumps.collateral_vault]
+        ];
+        let sp_mint_signing_seeds = &[&sp_mint_authority_seeds[..]];
+        let mint_cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.sp_program.to_account_info(),// SP TOKEN program
+            sp_mint_accounts,
+            sp_mint_signing_seeds
+        );
+        // Call mint_tokens instruction on the SP Token Program
+        cpi::mint_tokens(mint_cpi_ctx, fee_in_usdc_after_swap)?;
+            
+        
+        ctx.accounts.ecosystem_config.collected_fees = ctx.accounts.ecosystem_config.collected_fees
+            .checked_add(fee_amount)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+                
+        msg!("Updated collected fees to: {}", ctx.accounts.ecosystem_config.collected_fees);
+
         emit!(EcosystemDeposited {
-            ecosystem_mint: ctx.accounts.mint.key(),
-            depositor: ctx.accounts.payer.key(),
-            amount,
-            fee: fee_amount,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
+        ecosystem_mint: ctx.accounts.mint_account.key(),
+        depositor: ctx.accounts.payer.key(),
+        amount,
+        fee: fee_amount,
+        timestamp: Clock::get()?.unix_timestamp,
+    });
         
-        Ok(())
+    Ok(())
     }
+
     
     pub fn collect_fees(ctx: Context<CollectFees>) -> Result<()> {
         require!(ctx.accounts.payer.key() == ctx.accounts.config.owner, ErrorCode::Unauthorized);
@@ -453,19 +543,36 @@ pub mod token_deployer {
         
         msg!("USDC received from swap: {}", usdc_received);
         
-        let merchant_balance = &mut ctx.accounts.merchant_balance;
-        
-        if merchant_balance.merchant == Pubkey::default() {
-            merchant_balance.merchant = merchant_wallet;
-            merchant_balance.ecosystem_mint = ctx.accounts.mint.key();
-            merchant_balance.balance = 0;
-        }
-        
-        merchant_balance.balance = merchant_balance.balance
-            .checked_add(usdc_received)
+        // Convert USDC to SP tokens
+        let sp_amount = usdc_received
+            .checked_mul(SP_PER_USDC)
             .ok_or(ErrorCode::ArithmeticOverflow)?;
         
-        msg!("New merchant balance: {}", merchant_balance.balance);
+        msg!("SP tokens to mint: {}", sp_amount);
+        
+        // Mint SP tokens directly to merchant
+        let sp_bump = ctx.bumps.sp_mint_authority;
+        let sp_signer_seeds = [
+            b"sp_mint_authority".as_ref(),
+            &[sp_bump][..],
+        ];
+        let sp_signers = [&sp_signer_seeds[..]];
+        
+        // Mint SP tokens to merchant's SP token account
+        mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.sp_token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.sp_token_mint.to_account_info(),
+                    to: ctx.accounts.merchant_sp_token_account.to_account_info(),
+                    authority: ctx.accounts.sp_mint_authority.to_account_info(),
+                },
+                &sp_signers,
+            ),
+            sp_amount,
+        )?;
+        
+        msg!("SP tokens minted to merchant: {}", sp_amount);
         
         emit!(PurchaseProcessed {
             ecosystem_mint: ctx.accounts.mint.key(),
@@ -475,139 +582,7 @@ pub mod token_deployer {
             purchase_reference,
             timestamp: Clock::get()?.unix_timestamp,
         });
-    
-        Ok(())
-    }
 
-    pub fn create_withdrawal_request(ctx: Context<CreateWithdrawalRequest>) -> Result<()> {
-        let merchant_balance = &ctx.accounts.merchant_balance;
-
-        require!(
-            merchant_balance.balance > 0, 
-            ErrorCode::NoBalanceToWithdraw
-        );
-
-        let withdrawal_request = &mut ctx.accounts.withdrawal_request;
-        
-        if withdrawal_request.merchant != Pubkey::default() && !withdrawal_request.is_approved {
-            return err!(ErrorCode::PendingWithdrawalExists);
-        }
-        
-        withdrawal_request.merchant = ctx.accounts.payer.key();
-        withdrawal_request.ecosystem_mint = ctx.accounts.ecosystem_config.key();
-        withdrawal_request.amount = merchant_balance.balance;
-        withdrawal_request.timestamp = Clock::get()?.unix_timestamp;
-        withdrawal_request.is_approved = false;
-        withdrawal_request.approved_by = None;
-        
-        emit!(WithdrawalRequestCreated {
-            merchant: ctx.accounts.payer.key(),
-            ecosystem_mint: ctx.accounts.ecosystem_config.key(),
-            amount: merchant_balance.balance,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
-        
-        Ok(())
-    }
-
-    pub fn approve_withdrawal_request(ctx: Context<ApproveWithdrawalRequest>) -> Result<()> {
-        require!(
-            ctx.accounts.config.approvers.contains(&ctx.accounts.approver.key()),
-            ErrorCode::NotAnApprover
-        );
-
-        let withdrawal_request = &mut ctx.accounts.withdrawal_request;
-        
-        require!(
-            !withdrawal_request.is_approved,
-            ErrorCode::WithdrawalAlreadyApproved
-        );
-
-        require_keys_eq!(
-            ctx.accounts.output_mint.key(),
-            usdc_mint_id(),
-            ErrorCode::InvalidOutputMint
-        );
-
-        let merchant_balance = &mut ctx.accounts.merchant_balance;
-        
-        require!(
-            merchant_balance.balance >= withdrawal_request.amount,
-            ErrorCode::InsufficientBalance
-        );
-        
-        let withdrawal_fee_basis_points = ctx.accounts.ecosystem_config.withdrawal_fee_basis_points;
-        
-        let fee_amount = withdrawal_request.amount
-            .checked_mul(withdrawal_fee_basis_points as u64)
-            .ok_or(ErrorCode::ArithmeticOverflow)?
-            .checked_div(10000)
-            .ok_or(ErrorCode::ArithmeticOverflow)?;
-        
-        let fee_amount = if withdrawal_fee_basis_points > 0 && fee_amount == 0 {
-            1
-        } else {
-            fee_amount
-        };
-        
-        msg!("Withdrawal fee: {}", fee_amount);
-        
-        let withdraw_amount = withdrawal_request.amount
-            .checked_sub(fee_amount)
-            .ok_or(ErrorCode::ArithmeticOverflow)?;
-        
-        if fee_amount > 0 {
-            transfer_checked(
-                CpiContext::new_with_signer(
-                    ctx.accounts.output_mint_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.vault_output_token_account.to_account_info(),
-                        to: ctx.accounts.fee_vault.to_account_info(),
-                        authority: ctx.accounts.vault.to_account_info(),
-                        mint: ctx.accounts.output_mint.to_account_info(),
-                    },
-                    &[&[VAULT_SEED, &[ctx.bumps.vault]]],
-                ),
-                fee_amount,
-                ctx.accounts.output_mint.decimals,
-            )?;
-            
-            ctx.accounts.ecosystem_config.collected_fees = ctx.accounts.ecosystem_config.collected_fees
-                .checked_add(fee_amount)
-                .ok_or(ErrorCode::ArithmeticOverflow)?;
-        }
-        
-        transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.output_mint_program.to_account_info(),
-                TransferChecked {
-                    from: ctx.accounts.vault_output_token_account.to_account_info(),
-                    to: ctx.accounts.merchant_token_account.to_account_info(),
-                    authority: ctx.accounts.vault.to_account_info(),
-                    mint: ctx.accounts.output_mint.to_account_info(),
-                },
-                &[&[VAULT_SEED, &[ctx.bumps.vault]]],
-            ),
-            withdraw_amount,
-            ctx.accounts.output_mint.decimals,
-        )?;
-        
-        merchant_balance.balance = merchant_balance.balance
-            .checked_sub(withdrawal_request.amount)
-            .ok_or(ErrorCode::ArithmeticOverflow)?;
-        
-        withdrawal_request.is_approved = true;
-        withdrawal_request.approved_by = Some(ctx.accounts.approver.key());
-        
-        emit!(WithdrawalRequestApproved {
-            merchant: withdrawal_request.merchant,
-            ecosystem_mint: withdrawal_request.ecosystem_mint,
-            approved_by: ctx.accounts.approver.key(),
-            amount: withdraw_amount,
-            fee: fee_amount,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
-        
         Ok(())
     }
 
@@ -691,6 +666,9 @@ pub struct CreateEcosystem<'info> {
         bump,
     )]
     pub ecosystem_config: Account<'info, EcosystemConfig>,
+
+    #[account()]
+    pub sp_mint: InterfaceAccount<'info, Mint>,
     
     /// CHECK: PDA for fee vault authority
     #[account(
@@ -706,9 +684,9 @@ pub struct CreateEcosystem<'info> {
         payer = payer,
         seeds = [b"fee_vault", mint_account.key().as_ref()],
         bump,
-        token::mint = collateral_token_mint,
+        token::mint = sp_mint,// Changing mint to SP Tokens instead
         token::authority = fee_vault_authority,
-        token::token_program = collateral_token_program,
+        token::token_program = token_program,// Changing from collateral token program to token program
     )]
     pub fee_vault: InterfaceAccount<'info, TokenAccount>,
     
@@ -750,22 +728,22 @@ pub struct DepositEcosystem<'info> {
     )]
     pub config: Account<'info, Config>,
     
-    #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(mut)]// Token For Collateralization
+    pub mint_account: InterfaceAccount<'info, Mint>,
     
     /// CHECK: This is a PDA used as the mint authority
     #[account(
-        seeds = [b"mint_authority", mint.key().as_ref()],
+        seeds = [b"mint_authority", mint_account.key().as_ref()],
         bump,
     )]
     pub mint_authority: AccountInfo<'info>,
     
-    #[account(mut)]
+    #[account(mut)]// To Receive Ecosystem Mint
     pub to_ata: InterfaceAccount<'info, TokenAccount>,
     
     #[account(
         mut,
-        seeds = [b"ecosystem_config", mint.key().as_ref()],
+        seeds = [b"ecosystem_config", mint_account.key().as_ref()],
         bump,
         constraint = ecosystem_config.ecosystem_partner_wallet == payer.key() @ ErrorCode::Unauthorized
     )]
@@ -782,19 +760,49 @@ pub struct DepositEcosystem<'info> {
     
     #[account(
         mut,
-        seeds = [b"fee_vault", mint.key().as_ref()],
+        seeds = [b"fee_vault", mint_account.key().as_ref()],
+        bump,
+    )]// Created with SP as the mint in CreateEcosystem
+    pub fee_vault: InterfaceAccount<'info, TokenAccount>,
+ 
+    #[account()]
+    pub sp_mint: InterfaceAccount<'info, Mint>,
+
+    /// CHECK: Approved SP Mint Authority account.
+    #[account(
+        mut,
+        seeds = [b"sp_mint_authority", sp_mint.key().as_ref()],
         bump,
     )]
-    pub fee_vault: InterfaceAccount<'info, TokenAccount>,
+    pub sp_mint_authority: AccountInfo<'info>,
+
+    // Will receive the fees in usdc from the Jupiter Swap
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint_id(),
+        associated_token::authority = mint_authority
+    )]
+    pub usdc_receive_swap_ata: InterfaceAccount<'info, TokenAccount>,
+ /* 
+    #[account(
+        address = USDC_MINT,
+    )]
+    pub usdc_mint: Account<'info, Mint>,*/
     
     #[account(
         mut,
-        seeds = [b"collateral_vault", mint.key().as_ref()],
+        seeds = [b"collateral_vault", mint_account.key().as_ref()],
         bump,
     )]
     pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
     
     pub token_program: Program<'info, Token2022>,
+
+    pub token_program_interface: Interface<'info, TokenInterface>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
+
+    pub system_program: Program<'info, System>,
     
     /// CHECK: Will use the token program saved in ecosystem_config
     #[account(
@@ -802,6 +810,10 @@ pub struct DepositEcosystem<'info> {
         @ ErrorCode::InvalidProgramId
     )]
     pub collateral_token_program: AccountInfo<'info>,
+
+    pub jupiter_program: Program<'info, Jupiter>,
+
+    pub sp_program: Program<'info, SpreePoints>,
 }
 
 #[derive(Accounts)]
@@ -986,22 +998,38 @@ pub struct Swap<'info> {
         @ ErrorCode::InvalidProgramId
     )]
     pub collateral_token_program: AccountInfo<'info>,
-
-    #[account(
-        init_if_needed,
-        payer = payer,
-        space = 8 + 32 + 8 + 32,
-        seeds = [b"merchant_balance", merchant_wallet.key().as_ref(), mint.key().as_ref()],
-        bump,
-    )]
-    pub merchant_balance: Account<'info, MerchantBalance>,
     
     /// CHECK: This is just the public key of the merchant
     pub merchant_wallet: AccountInfo<'info>,
     
+    // SP token mint
+    pub sp_token_mint: InterfaceAccount<'info, Mint>,
+    
+    // SP token program
+    pub sp_token_program: Program<'info, Token2022>,
+    
+    /// CHECK: This is a PDA for SP mint authority
+    #[account(
+        seeds = [b"sp_mint_authority"],
+        bump,
+    )]
+    pub sp_mint_authority: AccountInfo<'info>,
+    
+    // Merchant's SP token account
+    #[account(
+        mut,
+        constraint = merchant_sp_token_account.mint == sp_token_mint.key() @ ErrorCode::InvalidToken,
+        constraint = merchant_sp_token_account.owner == merchant_wallet.key() @ ErrorCode::Unauthorized
+    )]
+    pub merchant_sp_token_account: InterfaceAccount<'info, TokenAccount>,
+    
     pub system_program: Program<'info, System>,
 }
 
+// Removing the CreateWithdrawalRequest and ApproveWithdrawalRequest functions
+// as we're now directly minting SP tokens to merchants.
+// The functions will be commented out 
+/*
 #[derive(Accounts)]
 pub struct CreateWithdrawalRequest<'info> {
     #[account(
@@ -1103,6 +1131,7 @@ pub struct ApproveWithdrawalRequest<'info> {
     )]
     pub fee_vault: InterfaceAccount<'info, TokenAccount>,
 }
+*/
 
 #[event]
 pub struct ProgramInitialized {
@@ -1176,6 +1205,10 @@ pub struct MaxCapUpdated {
     pub timestamp: i64,
 }
 
+// Remove the WithdrawalRequestCreated and WithdrawalRequestApproved event structs
+// since we no longer need them.
+
+/*
 #[event]
 pub struct WithdrawalRequestCreated {
     pub merchant: Pubkey,
@@ -1193,6 +1226,7 @@ pub struct WithdrawalRequestApproved {
     pub fee: u64,
     pub timestamp: i64,
 }
+*/
 
 #[event]
 pub struct PurchaseProcessed {
@@ -1237,6 +1271,7 @@ pub struct TokenMetadataArgs {
     pub collateral_token_mint: Pubkey,
 }
 
+/*
 #[account]
 pub struct WithdrawalRequest {
     pub merchant: Pubkey,
@@ -1246,13 +1281,7 @@ pub struct WithdrawalRequest {
     pub is_approved: bool,
     pub approved_by: Option<Pubkey>,
 }
-
-#[account]
-pub struct MerchantBalance {
-    pub merchant: Pubkey,
-    pub balance: u64,
-    pub ecosystem_mint: Pubkey,
-}
+*/
 
 #[error_code]
 pub enum ErrorCode {
