@@ -1,0 +1,3257 @@
+{
+  "address": "3pVZ5as41wf864VxTiWXrMAuZYKsB7p4jGKgQ7e6WMwp",
+  "metadata": {
+    "name": "spree_points",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_to_burn_whitelist",
+      "discriminator": [
+        123,
+        175,
+        26,
+        146,
+        231,
+        182,
+        250,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "white_list_status",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "add_to_mint_whitelist",
+      "discriminator": [
+        187,
+        194,
+        165,
+        139,
+        219,
+        39,
+        41,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "white_list_status",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_burn_request",
+      "discriminator": [
+        120,
+        147,
+        83,
+        180,
+        166,
+        23,
+        58,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  50,
+                  48,
+                  50,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "to_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program2022"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "burn_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "burner_whitelist_status",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "freeze_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program2022"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_burn_request",
+      "discriminator": [
+        178,
+        117,
+        80,
+        132,
+        101,
+        142,
+        156,
+        66
+      ],
+      "accounts": [
+        {
+          "name": "mint_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "executor",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99,
+                  117,
+                  116,
+                  111,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  50,
+                  48,
+                  50,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        },
+        {
+          "name": "usdc_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "burner",
+          "writable": true
+        },
+        {
+          "name": "burn_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "burner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient",
+          "writable": true
+        },
+        {
+          "name": "usdc_to_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "recipient"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "burner_whitelist_status",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "burn_request.requester",
+                "account": "BurnRequest"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_whitelist_status",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "burn_request.recipient",
+                "account": "BurnRequest"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fees",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_collector",
+          "writable": true
+        },
+        {
+          "name": "freeze_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_program2022"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "freeze",
+      "discriminator": [
+        255,
+        91,
+        207,
+        84,
+        251,
+        194,
+        254,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "freeze_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": {
+            "defined": {
+              "name": "FreezeTarget"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_config",
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_executor",
+      "discriminator": [
+        176,
+        40,
+        133,
+        151,
+        198,
+        251,
+        10,
+        91
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "executor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99,
+                  117,
+                  116,
+                  111,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitExecutorArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_fees",
+      "discriminator": [
+        136,
+        215,
+        89,
+        51,
+        243,
+        2,
+        76,
+        36
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fees",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitFeesArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_mint_keeper",
+      "discriminator": [
+        87,
+        110,
+        154,
+        147,
+        232,
+        169,
+        130,
+        106
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  50,
+                  48,
+                  50,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_pda",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "token_program_2022",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_token",
+      "discriminator": [
+        38,
+        209,
+        150,
+        50,
+        190,
+        117,
+        16,
+        54
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  50,
+                  48,
+                  50,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        },
+        {
+          "name": "usdc_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_program2022"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitTokenAccountArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "intialize_freeze",
+      "discriminator": [
+        98,
+        229,
+        62,
+        103,
+        122,
+        194,
+        117,
+        131
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "freeze_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_tokens",
+      "discriminator": [
+        59,
+        132,
+        24,
+        246,
+        122,
+        39,
+        8,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  50,
+                  48,
+                  50,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        },
+        {
+          "name": "usdc_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "to_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program2022"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_from_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "fees",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_collector",
+          "writable": true
+        },
+        {
+          "name": "freeze_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "white_list_status",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_program2022"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "remove_from_burn_whitelist",
+      "discriminator": [
+        171,
+        255,
+        39,
+        50,
+        25,
+        155,
+        24,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "white_list_status",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "remove_from_mint_whitelist",
+      "discriminator": [
+        213,
+        216,
+        72,
+        202,
+        69,
+        161,
+        139,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "white_list_status",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "request_burn",
+      "discriminator": [
+        222,
+        82,
+        224,
+        225,
+        201,
+        96,
+        24,
+        213
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  50,
+                  48,
+                  50,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "from_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "signer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program2022"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipient",
+          "writable": true
+        },
+        {
+          "name": "burn_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fees",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "freeze_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "burner_whitelist_status",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_whitelist_status",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  114,
+                  110,
+                  45,
+                  119,
+                  104,
+                  105,
+                  116,
+                  101,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "recipient"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint_keeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  45,
+                  107,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_program2022"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unfreeze",
+      "discriminator": [
+        133,
+        160,
+        68,
+        253,
+        80,
+        232,
+        218,
+        247
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "freeze_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": {
+            "defined": {
+              "name": "FreezeTarget"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_burn_whitelist_authority",
+      "discriminator": [
+        252,
+        0,
+        206,
+        206,
+        171,
+        207,
+        41,
+        41
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "new_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_executor_account",
+      "discriminator": [
+        197,
+        81,
+        233,
+        116,
+        233,
+        37,
+        188,
+        32
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "executor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99,
+                  117,
+                  116,
+                  111,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_executor_account",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_executor_authority",
+      "discriminator": [
+        118,
+        94,
+        103,
+        40,
+        128,
+        92,
+        251,
+        116
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "executor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99,
+                  117,
+                  116,
+                  111,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_fees",
+      "discriminator": [
+        225,
+        27,
+        13,
+        6,
+        69,
+        84,
+        172,
+        191
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fees",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  115
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "UpdateFeesArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_freeze_authority",
+      "discriminator": [
+        207,
+        214,
+        87,
+        244,
+        156,
+        249,
+        210,
+        81
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "new_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "freeze_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  114,
+                  101,
+                  101,
+                  122,
+                  101
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_mint_whitelist_authority",
+      "discriminator": [
+        132,
+        215,
+        76,
+        63,
+        6,
+        254,
+        46,
+        216
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "new_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "BurnRequest",
+      "discriminator": [
+        192,
+        96,
+        174,
+        201,
+        165,
+        92,
+        135,
+        80
+      ]
+    },
+    {
+      "name": "BurnWhiteListStatus",
+      "discriminator": [
+        208,
+        62,
+        136,
+        155,
+        253,
+        187,
+        40,
+        196
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "Executor",
+      "discriminator": [
+        81,
+        168,
+        99,
+        99,
+        156,
+        134,
+        16,
+        166
+      ]
+    },
+    {
+      "name": "Fees",
+      "discriminator": [
+        151,
+        157,
+        50,
+        115,
+        130,
+        72,
+        179,
+        36
+      ]
+    },
+    {
+      "name": "FreezeState",
+      "discriminator": [
+        86,
+        61,
+        245,
+        200,
+        4,
+        134,
+        233,
+        121
+      ]
+    },
+    {
+      "name": "MintWhiteListStatus",
+      "discriminator": [
+        191,
+        101,
+        207,
+        232,
+        134,
+        146,
+        74,
+        220
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BurnEvent",
+      "discriminator": [
+        33,
+        89,
+        47,
+        117,
+        82,
+        124,
+        238,
+        250
+      ]
+    },
+    {
+      "name": "BurnRequestApprovalEvent",
+      "discriminator": [
+        113,
+        154,
+        152,
+        99,
+        79,
+        156,
+        163,
+        153
+      ]
+    },
+    {
+      "name": "BurnRequestCancelEvent",
+      "discriminator": [
+        28,
+        47,
+        0,
+        74,
+        27,
+        243,
+        40,
+        21
+      ]
+    },
+    {
+      "name": "BurnRequestEvent",
+      "discriminator": [
+        120,
+        161,
+        216,
+        47,
+        40,
+        198,
+        162,
+        236
+      ]
+    },
+    {
+      "name": "BurnWhitelistAddEvent",
+      "discriminator": [
+        118,
+        158,
+        61,
+        242,
+        83,
+        205,
+        200,
+        25
+      ]
+    },
+    {
+      "name": "BurnWhitelistRemoveEvent",
+      "discriminator": [
+        156,
+        25,
+        38,
+        16,
+        247,
+        192,
+        195,
+        253
+      ]
+    },
+    {
+      "name": "BurnWhitelistUpdateEvent",
+      "discriminator": [
+        47,
+        191,
+        61,
+        167,
+        16,
+        244,
+        171,
+        106
+      ]
+    },
+    {
+      "name": "ExecutorAccountUpdatedEvent",
+      "discriminator": [
+        181,
+        234,
+        140,
+        56,
+        164,
+        121,
+        250,
+        16
+      ]
+    },
+    {
+      "name": "ExecutorAuthorityUpdatedEvent",
+      "discriminator": [
+        171,
+        225,
+        155,
+        184,
+        200,
+        157,
+        116,
+        49
+      ]
+    },
+    {
+      "name": "FreezeStateChangedEvent",
+      "discriminator": [
+        109,
+        48,
+        215,
+        27,
+        155,
+        91,
+        221,
+        131
+      ]
+    },
+    {
+      "name": "MintEvent",
+      "discriminator": [
+        197,
+        144,
+        146,
+        149,
+        66,
+        164,
+        95,
+        16
+      ]
+    },
+    {
+      "name": "MintWhitelistAddEvent",
+      "discriminator": [
+        71,
+        222,
+        4,
+        77,
+        13,
+        247,
+        3,
+        155
+      ]
+    },
+    {
+      "name": "MintWhitelistRemoveEvent",
+      "discriminator": [
+        219,
+        73,
+        195,
+        218,
+        105,
+        240,
+        109,
+        46
+      ]
+    },
+    {
+      "name": "MintWhitelistUpdateEvent",
+      "discriminator": [
+        133,
+        238,
+        216,
+        217,
+        14,
+        213,
+        241,
+        179
+      ]
+    },
+    {
+      "name": "UpdateFeesEvent",
+      "discriminator": [
+        247,
+        152,
+        58,
+        110,
+        85,
+        4,
+        164,
+        14
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access: Caller does not have the required permissions."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidData",
+      "msg": "Invalid Data: There is an error in the data provided."
+    },
+    {
+      "code": 6002,
+      "name": "OperationNotAllowed",
+      "msg": "This operation is currently not allowed."
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientBalance",
+      "msg": "Insufficient Balance"
+    },
+    {
+      "code": 6004,
+      "name": "BpsOutOfRange",
+      "msg": "Bps out of range: Bps must be between 0 and 10000."
+    },
+    {
+      "code": 6005,
+      "name": "RecipientNotWhitelisted",
+      "msg": "Recipient is not whitelisted."
+    },
+    {
+      "code": 6006,
+      "name": "IsNotCurrentlyTransferring",
+      "msg": "The token is not currently transferring"
+    },
+    {
+      "code": 6007,
+      "name": "GlobalFrozen",
+      "msg": "All operations are currently frozen."
+    },
+    {
+      "code": 6008,
+      "name": "MintFrozen",
+      "msg": "Minting operations are currently frozen."
+    },
+    {
+      "code": 6009,
+      "name": "TransferFrozen",
+      "msg": "Transferring operations are currently frozen."
+    },
+    {
+      "code": 6010,
+      "name": "BurnFrozen",
+      "msg": "Burning operations are currently frozen."
+    },
+    {
+      "code": 6011,
+      "name": "MintRestricted",
+      "msg": "Minting is restricted to whitelisted accounts only."
+    },
+    {
+      "code": 6012,
+      "name": "BurnRestricted",
+      "msg": "Burning is restricted to whitelisted accounts only."
+    },
+    {
+      "code": 6013,
+      "name": "PendingBurnRequestExists",
+      "msg": "A pending burn request already exists."
+    },
+    {
+      "code": 6014,
+      "name": "NoPendingBurnRequestExists",
+      "msg": "No pending burn request found."
+    },
+    {
+      "code": 6015,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds."
+    },
+    {
+      "code": 6016,
+      "name": "InvalidExecutor",
+      "msg": "Signer is not the registered executor account"
+    }
+  ],
+  "types": [
+    {
+      "name": "BurnEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "from_address",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_burned",
+            "type": "u64"
+          },
+          {
+            "name": "fee_amount",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee_collector",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnRequest",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "requester",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "BurnRequestStatus"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnRequestApprovalEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "requester",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnRequestCancelEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "requester",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnRequestEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "requester",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "BurnRequestStatus"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnRequestStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Unknown"
+          },
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnWhiteListStatus",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnWhitelistAddEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "account_added",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnWhitelistRemoveEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "account_removed",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BurnWhitelistUpdateEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_whitelist_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "burn_whitelist_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Executor",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "executor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "executor_account",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExecutorAccountUpdatedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_account",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExecutorAuthorityUpdatedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Fees",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "transfer_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "redemption_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "fee_collector",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FreezeState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_frozen",
+            "type": "bool"
+          },
+          {
+            "name": "freeze_mint",
+            "type": "bool"
+          },
+          {
+            "name": "freeze_transfer",
+            "type": "bool"
+          },
+          {
+            "name": "freeze_burn",
+            "type": "bool"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FreezeStateChangedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "target",
+            "type": {
+              "defined": {
+                "name": "FreezeTarget"
+              }
+            }
+          },
+          {
+            "name": "is_frozen",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FreezeTarget",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "All"
+          },
+          {
+            "name": "Mint"
+          },
+          {
+            "name": "Transfer"
+          },
+          {
+            "name": "Burn"
+          },
+          {
+            "name": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitExecutorArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "executor_account",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitFeesArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "transfer_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "redemption_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "fee_collector",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitTokenAccountArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "transfer_hook_program_id",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "minter",
+            "type": "pubkey"
+          },
+          {
+            "name": "receiver",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_minted",
+            "type": "u64"
+          },
+          {
+            "name": "usdc_spent",
+            "type": "u64"
+          },
+          {
+            "name": "fee_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintWhiteListStatus",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintWhitelistAddEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "account_added",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintWhitelistRemoveEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "account_removed",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintWhitelistUpdateEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateFeesArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_fee_bps",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "transfer_fee_bps",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "redemption_fee_bps",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "fee_collector",
+            "type": {
+              "option": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateFeesEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "transfer_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "redemption_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "fee_collector",
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "BURN_REQUEST_SEED",
+      "type": "bytes",
+      "value": "[98, 117, 114, 110, 45, 114, 101, 113, 117, 101, 115, 116]"
+    },
+    {
+      "name": "BURN_WHITELIST_SEED",
+      "type": "bytes",
+      "value": "[98, 117, 114, 110, 45, 119, 104, 105, 116, 101, 108, 105, 115, 116]"
+    },
+    {
+      "name": "CONFIG_SEED",
+      "type": "bytes",
+      "value": "[116, 111, 107, 101, 110, 45, 99, 111, 110, 102, 105, 103]"
+    },
+    {
+      "name": "EXECUTOR_SEED",
+      "type": "bytes",
+      "value": "[101, 120, 101, 99, 117, 116, 111, 114]"
+    },
+    {
+      "name": "FEES_SEED",
+      "type": "bytes",
+      "value": "[102, 101, 101, 115]"
+    },
+    {
+      "name": "FREEZE_SEED",
+      "type": "bytes",
+      "value": "[102, 114, 101, 101, 122, 101]"
+    },
+    {
+      "name": "META_LIST_ACCOUNT_SEED",
+      "type": "bytes",
+      "value": "[101, 120, 116, 114, 97, 45, 97, 99, 99, 111, 117, 110, 116, 45, 109, 101, 116, 97, 115]"
+    },
+    {
+      "name": "MINT_KEEPER_SEED",
+      "type": "bytes",
+      "value": "[109, 105, 110, 116, 45, 107, 101, 101, 112, 101, 114]"
+    },
+    {
+      "name": "MINT_WHITELIST_SEED",
+      "type": "bytes",
+      "value": "[109, 105, 110, 116, 45, 119, 104, 105, 116, 101, 108, 105, 115, 116]"
+    },
+    {
+      "name": "SP_DECIMALS",
+      "type": "u8",
+      "value": "6"
+    },
+    {
+      "name": "SP_PER_USDC",
+      "type": "u64",
+      "value": "100"
+    },
+    {
+      "name": "TOKEN_2022_SEED",
+      "type": "bytes",
+      "value": "[116, 111, 107, 101, 110, 45, 50, 48, 50, 50]"
+    },
+    {
+      "name": "USDC_DECIMALS",
+      "type": "u8",
+      "value": "6"
+    },
+    {
+      "name": "USDC_SEED",
+      "type": "bytes",
+      "value": "[117, 115, 100, 99]"
+    },
+    {
+      "name": "USER_WHITELIST_SEED",
+      "type": "bytes",
+      "value": "[117, 115, 101, 114, 45, 119, 104, 105, 116, 101, 108, 105, 115, 116]"
+    }
+  ]
+}
