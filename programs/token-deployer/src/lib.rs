@@ -298,11 +298,12 @@ pub mod token_deployer {
 
         // @dev: Now USDC fee is in usdc_receive_swap_ata
         // CPI into the SP mint_tokens instruction
+        let sp_mint = &ctx.accounts.sp_mint;
         let sp_mint_accounts = MintTokens{
-            signer: ctx.accounts.payer.to_account_info(),
+            signer: ctx.accounts.sp_mint_authority.to_account_info(),
             usdc_mint: todo!(),
             usdc_keeper: todo!(),
-            mint: todo!(),
+            mint: sp_mint.to_account_info(),
             to_ata: ctx.accounts.fee_vault.to_account_info(),
             usdc_from_ata: ctx.accounts.usdc_receive_swap_ata.to_account_info(),
             fees: todo!(),
@@ -315,9 +316,16 @@ pub mod token_deployer {
             associated_token_program: ctx.accounts.associated_token_program.to_account_info()
         };
         // Get Mint CPI context
-        let mint_cpi_ctx = CpiContext::new(
+        // SP Minting Authority
+        let sp_mint_authority_seeds = &[
+            b"sp_mint_authority", sp_mint.key().as_ref(),
+            &[ctx.bumps.collateral_vault]
+        ];
+        let sp_mint_signing_seeds = &[&sp_mint_authority_seeds[..]];
+        let mint_cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.sp_program.to_account_info(),// SP TOKEN program
-            sp_mint_accounts
+            sp_mint_accounts,
+            sp_mint_signing_seeds
         );
         // Call mint_tokens instruction on the SP Token Program
         cpi::mint_tokens(mint_cpi_ctx, fee_in_usdc_after_swap)?;
@@ -873,9 +881,17 @@ pub struct DepositEcosystem<'info> {
         bump,
     )]// Created with SP as the mint in CreateEcosystem
     pub fee_vault: InterfaceAccount<'info, TokenAccount>,
-/* 
+ 
     #[account()]
-    pub sp_mint: InterfaceAccount<'info, Mint>,*/
+    pub sp_mint: InterfaceAccount<'info, Mint>,
+
+    /// CHECK: Approved SP Mint Authority account.
+    #[account(
+        mut,
+        seeds = [b"sp_mint_authority", sp_mint.key().as_ref()],
+        bump,
+    )]
+    pub sp_mint_authority: AccountInfo<'info>,
 
     // Will receive the fees in usdc from the Jupiter Swap
     #[account(
