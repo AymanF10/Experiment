@@ -27,7 +27,7 @@ use spree_points::{
         self,
         accounts::*,
     },
-    constants::*,
+    //constants::*,
     program::SpreePoints
 };
 
@@ -260,9 +260,9 @@ pub mod token_deployer {
         mint_to(cpi_context, remaining_amount)?;
 
          // PUT SWAP FUNCTIONALITY HERE
-        ///@dev: 
-        /// The fee amount to be swapped will be the exact amount we will get Jupiter Quote for
-        /// Will be Done Client-side, during off-chain quote fetching
+        //@dev: 
+        // The fee amount to be swapped will be the exact amount we will get Jupiter Quote for
+        // Will be Done Client-side, during off-chain quote fetching
         let usdc_fee_account_balance_before = ctx.accounts.usdc_receive_swap_ata.amount;
         let jupiter_accounts: Vec<AccountMeta> = ctx.remaining_accounts
             .iter()
@@ -301,15 +301,15 @@ pub mod token_deployer {
         let sp_mint = &ctx.accounts.sp_mint;
         let sp_mint_accounts = MintTokens{
             signer: ctx.accounts.sp_mint_authority.to_account_info(),
-            usdc_mint: todo!(),
-            usdc_keeper: todo!(),
-            mint: sp_mint.to_account_info(),
+            usdc_mint: ctx.accounts.usdc_mint.to_account_info(),
+            usdc_keeper: ctx.accounts.usdc_keeper.to_account_info(),
+            mint: ctx.accounts.sp_mint.to_account_info(),
             to_ata: ctx.accounts.fee_vault.to_account_info(),
             usdc_from_ata: ctx.accounts.usdc_receive_swap_ata.to_account_info(),
-            fees: todo!(),
-            fee_collector: todo!(),
-            freeze_state: todo!(),
-            white_list_status: todo!(),
+            fees: ctx.accounts.fees.to_account_info(),
+            fee_collector: ctx.accounts.fees_collector.to_account_info(),
+            freeze_state: ctx.accounts.freeze_state.to_account_info(),
+            white_list_status: ctx.accounts.whitelist_status.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             token_program: ctx.accounts.token_program_interface.to_account_info(),
             token_program2022: ctx.accounts.token_program.to_account_info(),
@@ -317,8 +317,9 @@ pub mod token_deployer {
         };
         // Get Mint CPI context
         // SP Minting Authority
+        let sp_mint_key = sp_mint.key();
         let sp_mint_authority_seeds = &[
-            b"sp_mint_authority", sp_mint.key().as_ref(),
+            b"sp_mint_authority", sp_mint_key.as_ref(),
             &[ctx.bumps.collateral_vault]
         ];
         let sp_mint_signing_seeds = &[&sp_mint_authority_seeds[..]];
@@ -846,7 +847,7 @@ pub struct DepositEcosystem<'info> {
     pub config: Account<'info, Config>,
     
     #[account(mut)]// Token For Collateralization
-    pub mint_account: InterfaceAccount<'info, Mint>,
+    pub mint_account: Box<InterfaceAccount<'info, Mint>>,
     
     /// CHECK: This is a PDA used as the mint authority
     #[account(
@@ -856,7 +857,7 @@ pub struct DepositEcosystem<'info> {
     pub mint_authority: AccountInfo<'info>,
     
     #[account(mut)]// To Receive Ecosystem Mint
-    pub to_ata: InterfaceAccount<'info, TokenAccount>,
+    pub to_ata: Box<InterfaceAccount<'info, TokenAccount>>,
     
     #[account(
         mut,
@@ -866,21 +867,21 @@ pub struct DepositEcosystem<'info> {
     )]
     pub ecosystem_config: Account<'info, EcosystemConfig>,
     
-    pub collateral_token_mint: InterfaceAccount<'info, Mint>,
+    pub collateral_token_mint: Box<InterfaceAccount<'info, Mint>>,
     
     #[account(
         mut,
         constraint = user_collateral_account.mint == collateral_token_mint.key() @ ErrorCode::InvalidCollateralToken,
         constraint = user_collateral_account.owner == payer.key() @ ErrorCode::Unauthorized
     )]
-    pub user_collateral_account: InterfaceAccount<'info, TokenAccount>,
+    pub user_collateral_account: Box<InterfaceAccount<'info, TokenAccount>>,
     
     #[account(
         mut,
         seeds = [b"fee_vault", mint_account.key().as_ref()],
         bump,
     )]// Created with SP as the mint in CreateEcosystem
-    pub fee_vault: InterfaceAccount<'info, TokenAccount>,
+    pub fee_vault: Box<InterfaceAccount<'info, TokenAccount>>,
  
     #[account()]
     pub sp_mint: InterfaceAccount<'info, Mint>,
@@ -899,19 +900,42 @@ pub struct DepositEcosystem<'info> {
         associated_token::mint = usdc_mint_id(),
         associated_token::authority = mint_authority
     )]
-    pub usdc_receive_swap_ata: InterfaceAccount<'info, TokenAccount>,
- /* 
+    pub usdc_receive_swap_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+  
+  /// CHECK: On-chain USDC MINT ADDRESS 
     #[account(
         address = USDC_MINT,
     )]
-    pub usdc_mint: Account<'info, Mint>,*/
+    pub usdc_mint: AccountInfo<'info>,
+
+    /// CHECK: Account To Keep The Pulled USDC
+    #[account(
+        mut,
+    )]
+    pub usdc_keeper: AccountInfo<'info>,
+
+    /// CHECK: SAFE, as this denotes the minting fee
+    #[account()]
+    pub fees: AccountInfo<'info>,
+
+    /// CHECK: SAFE, as this will be checked off-chain
+    #[account()]
+    pub fees_collector: AccountInfo<'info>,
+
+    /// CHECK: SAFE, as just denotes the State of Minting
+    #[account()]
+    pub freeze_state: AccountInfo<'info>,
+
+    /// CHECK: SAFE, whitelisted addresses can Mint tokens
+    #[account()]
+    pub whitelist_status: AccountInfo<'info>,
     
     #[account(
         mut,
         seeds = [b"collateral_vault", mint_account.key().as_ref()],
         bump,
     )]
-    pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
+    pub collateral_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     
     pub token_program: Program<'info, Token2022>,
 
