@@ -1,6 +1,3 @@
-/// <reference types="mocha" />
-/// <reference types="node" />
-
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { TokenDeployer } from "../target/types/token_deployer";
