@@ -596,7 +596,7 @@ describe("token-deployer with transfer hook", () => {
   });
 
   // Second test - Withdrawal (moving from end to here)
-  it("Verify withdrawal fee conversion to SP tokens", async () => {
+  it("Verify direct SP token minting to merchant", async () => {
     const mintAmount = 100 * 10 ** decimals;
     await mintTokensWithPartner(mintAmount);
 
@@ -633,10 +633,12 @@ describe("token-deployer with transfer hook", () => {
       commitment: "confirmed",
     });
 
-    // Create merchant USDC token account
-    const usdcMint = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-    const merchantUsdcAccount = getAssociatedTokenAddressSync(
-      usdcMint,
+    // Get SP token mint
+    const spTokenMint = new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC");
+    
+    // Create merchant SP token account
+    const merchantSpTokenAccount = getAssociatedTokenAddressSync(
+      spTokenMint,
       recipient.publicKey,
       false,
       TOKEN_2022_PROGRAM_ID,
@@ -644,22 +646,25 @@ describe("token-deployer with transfer hook", () => {
     );
 
     try {
-      await connection.getTokenAccountBalance(merchantUsdcAccount);
+      await connection.getTokenAccountBalance(merchantSpTokenAccount);
     } catch (error) {
-      const createMerchantUsdcTx = new Transaction().add(
+      const createMerchantSpTx = new Transaction().add(
         createAssociatedTokenAccountInstruction(
           wallet.publicKey,
-          merchantUsdcAccount,
+          merchantSpTokenAccount,
           recipient.publicKey,
-          usdcMint,
+          spTokenMint,
           TOKEN_2022_PROGRAM_ID,
           ASSOCIATED_TOKEN_PROGRAM_ID
         )
       );
-      await sendAndConfirmTransaction(connection, createMerchantUsdcTx, [wallet.payer], {
+      await sendAndConfirmTransaction(connection, createMerchantSpTx, [wallet.payer], {
         commitment: "confirmed",
       });
     }
+
+    // Get USDC mint for Jupiter swap
+    const usdcMint = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
     // Get vault PDA
     const [vaultPda] = PublicKey.findProgramAddressSync(
@@ -699,6 +704,14 @@ describe("token-deployer with transfer hook", () => {
       // Add any other necessary accounts for Jupiter swap
     ];
 
+    // Check merchant SP balance before swap
+    const merchantSpBalanceBefore = await connection.getTokenAccountBalance(
+      merchantSpTokenAccount,
+      "confirmed"
+    ).catch(() => ({ value: { amount: "0" } }));
+    
+    console.log("Merchant SP balance before swap:", merchantSpBalanceBefore.value.uiAmount || 0);
+
     await tokenDeployerProgram.methods
       .swap(
         new anchor.BN(swapAmount), 
@@ -706,7 +719,6 @@ describe("token-deployer with transfer hook", () => {
         swapData
       )
       .accounts({
-        config: configPda,
         payer: ecosystemPartnerKeypair.publicKey,
         inputMint: collateralMintKeypair.publicKey,
         inputMintProgram: TOKEN_2022_PROGRAM_ID,
@@ -723,52 +735,36 @@ describe("token-deployer with transfer hook", () => {
         feeVaultAuthority: feeVaultAuthorityPda,
         collateralVault: collateralVaultPda,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
-        merchantBalance: PublicKey.findProgramAddressSync(
-          [Buffer.from("merchant_balance"), recipient.publicKey.toBuffer(), mintKeypair.publicKey.toBuffer()],
-          tokenDeployerProgram.programId
-        )[0],
-        merchantTokenAccount: merchantUsdcAccount,
         merchantWallet: recipient.publicKey,
-        systemProgram: SystemProgram.programId,
-        spTokenMint: new PublicKey("SPooKYFSh7SnZUMGKGYU9EbAGXLKkH4gSZyJRcLcfC"),
+        spTokenMint: spTokenMint,
         spTokenProgram: TOKEN_2022_PROGRAM_ID,
         spMintAuthority: PublicKey.findProgramAddressSync(
           [Buffer.from("sp_mint_authority")],
           tokenDeployerProgram.programId
         )[0],
-        spVault: spVaultPda,
+        merchantSpTokenAccount: merchantSpTokenAccount,
+        systemProgram: SystemProgram.programId,
       })
       .remainingAccounts(remainingAccounts)
       .signers([ecosystemPartnerKeypair])
       .rpc({ commitment: "confirmed" });
 
-    // Check SP vault balance after swap
-    const spVaultAfterSwap = await connection.getTokenAccountBalance(
-      spVaultPda,
+    // Check merchant SP balance after swap
+    const merchantSpBalanceAfter = await connection.getTokenAccountBalance(
+      merchantSpTokenAccount,
       "confirmed"
     );
-    console.log("SP vault balance after swap:", spVaultAfterSwap.value.uiAmount);
+    
+    console.log("Merchant SP balance after swap:", merchantSpBalanceAfter.value.uiAmount);
 
-    // Calculate expected SP tokens from withdrawal fee
-    const withdrawalFee = 2000; // 20% fee (2000 basis points)
-    const feeAmount = (swapAmount * withdrawalFee) / 10000;
-    const expectedSpTokens = feeAmount * 100; // SP_PER_USDC = 100
+    // Calculate expected SP tokens from swap
+    // The Jupiter swap converts collateral tokens to USDC at 1:1 rate (in mock)
+    // Then converts USDC to SP at 1:100 rate
+    const expectedSpTokens = swapAmount * 100; // SP_PER_USDC = 100
     assert.equal(
-      Number(spVaultAfterSwap.value.amount),
-      Number(spVaultBeforeSwap.value.amount) + expectedSpTokens,
-      "SP vault should contain correct amount of SP tokens after withdrawal fee conversion"
-    );
-
-    // Check merchant received correct USDC amount (minus fee)
-    const merchantUsdcBalance = await connection.getTokenAccountBalance(
-      merchantUsdcAccount,
-      "confirmed"
-    );
-    console.log("Merchant USDC balance:", merchantUsdcBalance.value.uiAmount);
-    assert.equal(
-      Number(merchantUsdcBalance.value.amount),
-      swapAmount - feeAmount,
-      "Merchant should receive USDC amount minus fee"
+      Number(merchantSpBalanceAfter.value.amount),
+      Number(merchantSpBalanceBefore.value.amount || 0) + expectedSpTokens,
+      "Merchant should receive SP tokens directly"
     );
 });
 
