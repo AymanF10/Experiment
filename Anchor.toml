@@ -7,9 +7,12 @@ skip-lint = false
 
 [programs.localnet]
 cpi_swap_program = "BkY6rmiB7f2X5buFpvaTBQJhbPdiJybDVmsXLcFq6m7L"
-mock_jupiter = "JA1v2pi2o7yG79hHFqADtSgPZHmMspnKHGcecPAeK9pa"
-token_deployer = "CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh"
-transfer_hook = "6DkyQp5UoCkxubGGGBFhDsMP4yiuAg2PciJBQKJHD35E"
+mock_jupiter = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
+spree_points = "4tMWWjzrvgqdTPrRynnSmzwVDS2RyfCxXhEzSjJH1A1p"
+token_deployer = "3qGYKoUN2dxCqxbGYLPBFSZaXNLLt1rVwsJTfbah9gE6"
+transfer_hook = "9YGF4qqsGHg7h7FbxuPq8odvicBcAEJumSxFsCbXyAmt"
+
+
 
 [registry]
 url = "https://api.apr.dev"

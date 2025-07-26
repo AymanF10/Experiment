@@ -35,7 +35,8 @@ use spree_points::{
 declare_program!(spree_points);
 declare_program!(jupiter_aggregator);
 
-declare_id!("CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh");
+
+declare_id!("3qGYKoUN2dxCqxbGYLPBFSZaXNLLt1rVwsJTfbah9gE6");
 
 
 pub fn sp_program_id() -> Pubkey {
@@ -45,7 +46,6 @@ pub fn sp_program_id() -> Pubkey {
 const VAULT_SEED: &[u8] = b"vault";
 pub static USDC_MINT: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const JUP_PROGRAM_ID: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
-//const SP_PROGRAM_ID: &str = "3pVZ5as41wf864VxTiWXrMAuZYKsB7p4jGKgQ7e6WMwp";
 const USDC_MINT_STR: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const TOKEN_PROGRAM: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
@@ -199,7 +199,7 @@ pub mod token_deployer {
             ErrorCode::InvalidToken
         );
         
-        let current_supply = ctx.accounts.mint_account.supply;
+        let current_supply = ctx.accounts.mint_account.supply;////!ecosystem tokens total supply
         let max_minting_cap = ctx.accounts.ecosystem_config.max_minting_cap;
         let deposit_fee_basis_points = ctx.accounts.ecosystem_config.deposit_fee_basis_points;
         
@@ -215,7 +215,7 @@ pub mod token_deployer {
             .ok_or(ErrorCode::ArithmeticOverflow)?;
         
         let remaining_amount = amount.checked_sub(fee_amount).ok_or(ErrorCode::ArithmeticOverflow)?;
-        
+        ////! transfers user's collateral to ecosystem_collateral vault
         if remaining_amount > 0 {
             transfer_checked(
                 CpiContext::new(
@@ -231,7 +231,7 @@ pub mod token_deployer {
                 ctx.accounts.collateral_token_mint.decimals,
             )?;
         }
-        
+        ////! ecosystem tokens minting: has hook_extension, gets invoked upon transfer
         let cpi_accounts = MintTo {
             mint: ctx.accounts.mint_account.to_account_info(),
             to: ctx.accounts.to_ata.to_account_info(),
@@ -349,7 +349,7 @@ pub mod token_deployer {
     Ok(())
     }
 
-    
+    ////! Transfers SP Tokens From Fee Vault to Owner
     pub fn collect_fees(ctx: Context<CollectFees>) -> Result<()> {
         require!(ctx.accounts.payer.key() == ctx.accounts.config.owner, ErrorCode::Unauthorized);
         
@@ -443,6 +443,7 @@ pub mod token_deployer {
         Ok(())
     }
 
+    // Swapping from ecosystem collateral tokens into USDC via Jupiter
     pub fn swap(ctx: Context<Swap>, amount: u64,
         purchase_reference: String, data: Vec<u8>) -> Result<()> {
         require!(amount > 0, ErrorCode::InvalidAmount);
@@ -471,7 +472,7 @@ pub mod token_deployer {
         msg!("amount: {}", amount);
         msg!("merchant_wallet: {}", merchant_wallet);
         msg!("purchase_reference: {}", purchase_reference);
-        
+        ////! TRANSFER COLLATERAL TOKEN FROM COLLATERAL VAULT TO A NEW VAULT TO HOLD COLLATERAL FOR SWAP
         transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.collateral_token_program.to_account_info(),
@@ -490,7 +491,7 @@ pub mod token_deployer {
             amount,
             ctx.accounts.input_mint.decimals,
         )?;
-        
+        ////! BURN ECOSYSTEM TOKENS THAT WAS MINTED TO USER UPON DEPOSITING
         burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -502,7 +503,7 @@ pub mod token_deployer {
             ),
             amount,
         )?;
-        
+        ////! SWAP FROM COLLATERAL TOKENS (IN MIDDLE VAULT) TO USDC VIA JUPITER
         let initial_usdc_balance = ctx.accounts.vault_output_token_account.amount;
         
         let accounts: Vec<AccountMeta> = ctx
@@ -1088,7 +1089,7 @@ pub struct Swap<'info> {
       associated_token::mint=input_mint,
       associated_token::authority=vault,
       associated_token::token_program=input_mint_program,
-    )]
+    )]////! VAULT ATA FOR COLLATERAL TOKENS
     pub vault_input_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
@@ -1096,13 +1097,13 @@ pub struct Swap<'info> {
       associated_token::mint=output_mint,
       associated_token::authority=vault,
       associated_token::token_program=output_mint_program,
-    )]
+    )]////! VAULT ATA FOR USDC (after swap)
     pub vault_output_token_account: InterfaceAccount<'info, TokenAccount>,
 
     pub jupiter_program: Program<'info, Jupiter>,
 
     #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,////! ECOSYSTEM TOKENS
     
     #[account(
         seeds = [b"ecosystem_config", mint.key().as_ref()],
@@ -1114,7 +1115,7 @@ pub struct Swap<'info> {
         mut,
         constraint = user_token_account.mint == mint.key() @ ErrorCode::InvalidToken,
         constraint = user_token_account.owner == payer.key() @ ErrorCode::Unauthorized
-    )]
+    )]////! CALLER'S ATA FOR ECOSYSTEM TOKENS
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
     
     pub token_program: Program<'info, Token2022>,

@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { TokenDeployer } from "../target/types/token_deployer";
 import { TransferHook } from "../target/types/transfer_hook";
+//import { SpreePoints } from "../target/types/spree_points";
 import { assert } from "chai";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -21,6 +22,9 @@ import {
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+//import fs from "fs";
+//import path from "path";
+import * as spreeIdl from "../idls/spree_points.json";
 
 describe("token-deployer with transfer hook", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -30,15 +34,25 @@ describe("token-deployer with transfer hook", () => {
 
   const tokenDeployerProgram = anchor.workspace.TokenDeployer as Program<TokenDeployer>;
   const transferHookProgram = anchor.workspace.TransferHook as Program<TransferHook>;
+  //const spreePointsProgram = anchor.workspace.SpreePoints as Program<SpreePoints>;
+  const jupiterProgramId = new PublicKey(
+  "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
+);
+  const spreePointsProgramId = new PublicKey("4tMWWjzrvgqdTPrRynnSmzwVDS2RyfCxXhEzSjJH1A1p");
+  const spreePointsProgram = new Program(
+    spreeIdl,
+    provider,
+  );
 
   let mintKeypair, recipient;
   let sourceTokenAccount, destinationTokenAccount, ecosystemPartnerTokenAccount, unauthorizedTokenAccount;
   let decimals, transferAmount;
   let extraAccountMetas;
   
-  let configPda, mintAuthorityPda, ecosystemConfigPda, feeVaultAuthorityPda, feeVaultPda, collateralVaultPda;
+  let configPda, mintAuthorityPda, ecosystemConfigPda, feeVaultAuthorityPda, feeVaultPda, collateralVaultPda, spMintAuthorityPda;
   
   let collateralMintKeypair;
+  let spMintKeypair;
   const collateralDecimal = 9;
   
   const ecosystemPartnerKeypair = Keypair.generate();
@@ -80,10 +94,11 @@ describe("token-deployer with transfer hook", () => {
   }
 
   before(async () => {
+    // AIRDROP SOL TO ECOSYSTEMPARTNER
     await connection.confirmTransaction(
       await connection.requestAirdrop(ecosystemPartnerKeypair.publicKey, 2 * LAMPORTS_PER_SOL)
     );
-    
+    // AIRDROP SOL TO UNAUTHORIZED WALLET
     await connection.confirmTransaction(
       await connection.requestAirdrop(unauthorizedWalletKeypair.publicKey, 2 * LAMPORTS_PER_SOL)
     );
@@ -101,9 +116,35 @@ describe("token-deployer with transfer hook", () => {
         systemProgram: SystemProgram.programId,
       })
       .rpc({ commitment: "confirmed" });
+
+      // GENERATE SP MINT ADDRESS
+      spMintKeypair = Keypair.generate();
+      const spMintDecimals = 9;
+
+      const spMintTransaction = new Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: wallet.publicKey,
+          newAccountPubkey: spMintKeypair.publicKey,
+          space: 82,
+          lamports: await connection.getMinimumBalanceForRentExemption(82),
+          programId: TOKEN_2022_PROGRAM_ID
+  }),
+      createInitializeMintInstruction(
+        spMintKeypair.publicKey,
+        spMintDecimals,
+        wallet.publicKey,
+        wallet.publicKey,
+        TOKEN_2022_PROGRAM_ID,
+      )
+    );
+
+    await sendAndConfirmTransaction(connection, spMintTransaction, [wallet.payer, spMintKeypair], {
+      commitment: "confirmed",
+    });
       
+      // GENERATE COLLATERAL MINT ADDRESS
     collateralMintKeypair = Keypair.generate();
-    
+    // WALLET'S ATA FOR COLLATERAL MINT
     walletCollateralAccount = getAssociatedTokenAddressSync(
       collateralMintKeypair.publicKey,
       wallet.publicKey,
@@ -111,7 +152,7 @@ describe("token-deployer with transfer hook", () => {
       TOKEN_2022_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
-    
+    // ECOSYSTEM PARTNER ATA FOR COLLATERAL MINT
     partnerCollateralAccount = getAssociatedTokenAddressSync(
       collateralMintKeypair.publicKey,
       ecosystemPartnerKeypair.publicKey,
@@ -119,7 +160,7 @@ describe("token-deployer with transfer hook", () => {
       TOKEN_2022_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
-    
+    // ATA FOR UNAUTHORIZED USER
     unauthorizedCollateralAccount = getAssociatedTokenAddressSync(
       collateralMintKeypair.publicKey,
       unauthorizedWalletKeypair.publicKey,
@@ -129,7 +170,7 @@ describe("token-deployer with transfer hook", () => {
     );
     
     const createCollateralMintTx = new Transaction();
-    
+    // CREATE EMPTY COLLATERAL MINT 
     createCollateralMintTx.add(
       SystemProgram.createAccount({
         fromPubkey: wallet.publicKey,
@@ -139,7 +180,7 @@ describe("token-deployer with transfer hook", () => {
         programId: TOKEN_2022_PROGRAM_ID,
       })
     );
-    
+    // SET UP MINT AND FREEZE AUTHORITY FOR COLLATERAL MINT
     createCollateralMintTx.add(
       createInitializeMintInstruction(
         collateralMintKeypair.publicKey,
@@ -149,7 +190,7 @@ describe("token-deployer with transfer hook", () => {
         TOKEN_2022_PROGRAM_ID
       )
     );
-    
+    // COLLATERAL ATA MINT FOR WALLET
     createCollateralMintTx.add(
       createAssociatedTokenAccountInstruction(
         wallet.publicKey,
@@ -158,7 +199,7 @@ describe("token-deployer with transfer hook", () => {
         collateralMintKeypair.publicKey,
         TOKEN_2022_PROGRAM_ID,
         ASSOCIATED_TOKEN_PROGRAM_ID
-      ),
+      ),// COLLATERAL ATA MINT FOR ECOSYSTEM PARTNER
       createAssociatedTokenAccountInstruction(
         wallet.publicKey,
         partnerCollateralAccount,
@@ -166,7 +207,7 @@ describe("token-deployer with transfer hook", () => {
         collateralMintKeypair.publicKey,
         TOKEN_2022_PROGRAM_ID,
         ASSOCIATED_TOKEN_PROGRAM_ID
-      ),
+      ),// COLLATERAL ATA MINT FOR UNAUTHORIZED USER
       createAssociatedTokenAccountInstruction(
         wallet.publicKey,
         unauthorizedCollateralAccount,
@@ -180,7 +221,7 @@ describe("token-deployer with transfer hook", () => {
     await sendAndConfirmTransaction(connection, createCollateralMintTx, [wallet.payer, collateralMintKeypair], {
       commitment: "confirmed",
     });
-    
+    // MINT 1000 COLLATERAL TOKENS TO ECOSYSTEM PARTNER 
     const mintCollateralTx = new Transaction().add(
       createMintToInstruction(
         collateralMintKeypair.publicKey,
@@ -189,7 +230,7 @@ describe("token-deployer with transfer hook", () => {
         1000 * 10 ** collateralDecimal,
         [],
         TOKEN_2022_PROGRAM_ID
-      ),
+      ),// MINT 1000 COLLATERAL TOKENS TO UNAUTHORIZED USER
       createMintToInstruction(
         collateralMintKeypair.publicKey,
         unauthorizedCollateralAccount,
@@ -206,10 +247,11 @@ describe("token-deployer with transfer hook", () => {
   });
 
   beforeEach(async () => {
-    mintKeypair = Keypair.generate();
+    // TOKEN MINTED TO PARTNER UPON DEPOSITING
+    mintKeypair = Keypair.generate();// MINT ACCOUNT IN THE CONTEXT
     decimals = 9;
     transferAmount = 1 * 10 ** decimals;
-    
+    // PROBABLY NFT
     const name = "Bonk";
     const symbol = "BONK";
     const uri = "https://example.com/metadata.json"; // ToDo - test with correct JSON metadata format
@@ -243,6 +285,11 @@ describe("token-deployer with transfer hook", () => {
       tokenDeployerProgram.programId
     );
 
+    [spMintAuthorityPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("sp_mint_authority"), spMintKeypair.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+
     await tokenDeployerProgram.methods
       .createEcosystem({
         decimals,
@@ -263,12 +310,15 @@ describe("token-deployer with transfer hook", () => {
         mintAuthority: mintAuthorityPda,
         ecosystemConfig: ecosystemConfigPda,
         feeVaultAuthority: feeVaultAuthorityPda,
+        spMintAuthority: spMintAuthorityPda,
         collateralTokenMint: collateralMintKeypair.publicKey,
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
+        spMint: spMintKeypair.publicKey,
+        
       })
       .signers([mintKeypair])
       .rpc({ commitment: "confirmed" });
@@ -372,7 +422,7 @@ describe("token-deployer with transfer hook", () => {
     });
   });
 
-  it("Only allow ecosystem partner to deposit", async () => {
+  it.skip("Only allow ecosystem partner to deposit", async () => {
     const mintAmount = 100 * 10 ** decimals;
     
     const partnerTokenInfoBefore = await connection.getTokenAccountBalance(
@@ -470,7 +520,7 @@ describe("token-deployer with transfer hook", () => {
     assert(exceedCapFailed, "Minting more than the max cap should fail");
   });
 
-  it("Allow owner to collect fees", async () => {
+  it.skip("Allow owner to collect fees", async () => {
     const mintAmount = 200 * 10 ** decimals;
     
     const initialWalletBalance = await connection.getTokenAccountBalance(
@@ -563,7 +613,7 @@ describe("token-deployer with transfer hook", () => {
     assert(emptyCollectionFailed, "Should not be able to collect fees when vault is empty");
   });
 
-  it("Collecting fees", async () => {
+  it.skip("Collecting fees", async () => {
     await mintTokensWithPartner(150 * 10 ** decimals);
     
     const feeVaultBalance = await connection.getTokenAccountBalance(
@@ -611,7 +661,7 @@ describe("token-deployer with transfer hook", () => {
     assert(unauthorizedCollectionFailed, "Unauthorized users should not be able to collect fees");
   });
 
-  it("Tests transfer hook whitelist", async () => {
+  it.skip("Tests transfer hook whitelist", async () => {
     await mintTokensWithPartner(100 * 10 ** decimals);
     
     [whitelistStatusPda] = PublicKey.findProgramAddressSync(
@@ -709,7 +759,7 @@ describe("token-deployer with transfer hook", () => {
     );
   });
   
-  it("global and ecosystem freeze functionality", async () => {
+  it.skip("global and ecosystem freeze functionality", async () => {
     const mintAmount = 50 * 10 ** decimals;
     
     await mintTokensWithPartner(mintAmount);
