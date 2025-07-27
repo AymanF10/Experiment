@@ -12,6 +12,8 @@ import {
   VersionedTransaction,
  } from "@solana/web3.js";
  import { 
+  setAuthority,
+  AuthorityType,
   createMint,
   createAssociatedTokenAccount,
   getAssociatedTokenAddressSync,
@@ -22,11 +24,13 @@ import {
   TOKEN_2022_PROGRAM_ID,
  } from "@solana/spl-token";
 import { expect } from "chai";
+import * as utils from "../utils/utils";
 import * as spreeIdl from "../idls/spree_points.json";
 import { token } from "@coral-xyz/anchor/dist/cjs/utils";
 import { MockJupiter } from "../target/types/mock_jupiter";
 import { BN } from "bn.js";
 import { create } from "domain";
+import { SpreePoints } from "../target/types/spree_points";
 
 
 
@@ -41,20 +45,23 @@ describe("SP token Integration", () => {
   const spreePointsProgram = new Program(
     spreeIdl,
     provider,
-  );
+  ) as Program<SpreePoints>;
+
+  const usdcMint = new PublicKey(utils.USDC_MINT_ADDRESS);
 
   // Set Up Actors In The System
-  const deployer = provider.wallet;
+  const deployer = provider.wallet as anchor.Wallet;
   const ecosystemPartner = anchor.web3.Keypair.generate();
   const configOwner = anchor.web3.Keypair.generate();
   const userAlice = anchor.web3.Keypair.generate();
+  const deployerAta = new PublicKey("Dt1xGJ1mhuSPcVXgBx1EZtWWHTbEVq24wVcroWF1ib8c");
 
   //let collateralToken: PublicKey;
   //let spToken: PublicKey;
   const mintAccount = anchor.web3.Keypair.generate();
   const spToken = anchor.web3.Keypair.generate();
   const collateralToken = anchor.web3.Keypair.generate();
-  const usdcMint = anchor.web3.Keypair.generate();
+  //const usdcMint = anchor.web3.Keypair.generate();
   const usdcKeeper = anchor.web3.Keypair.generate();
   const fees = anchor.web3.Keypair.generate();
   const feesCollector = anchor.web3.Keypair.generate();
@@ -67,6 +74,17 @@ describe("SP token Integration", () => {
     );
     await provider.connection.confirmTransaction(airdropSig);
   }
+
+  const pdaMap = utils.findPDAs(spreePointsProgram, {
+      mint: [Buffer.from(utils.TOKEN_2022_SEED)],
+      usdcKeeper: [Buffer.from(utils.USDC_SEED)],
+      fees: [Buffer.from(utils.FEES_SEED)],
+      freezeState: [Buffer.from(utils.FREEZE_SEED)],
+      config: [Buffer.from(utils.CONFIG_SEED)],
+      keeperPda: [Buffer.from(utils.KEEPER_SEED)],
+      mintKeeper: [Buffer.from(utils.MINT_KEEPER_SEED)],
+      executor: [Buffer.from(utils.EXECUTOR_SEED)]
+    });
 
   before(async () => {
     await airdropSol(provider, ecosystemPartner.publicKey, 5);
@@ -200,6 +218,36 @@ describe("SP token Integration", () => {
 
   })
 
+  it("Initialize SP Token From The SP Program", async () => {
+
+    // Initialize Mint
+    await utils.initializeMint(spreePointsProgram, deployer, usdcMint, pdaMap);
+  })
+
+  it("Initialize SP Token Mint Keeper", async () => {
+
+    // Initialize Mint Keeper
+    await utils.initializeMintKeeper(spreePointsProgram, deployer, pdaMap);
+  })
+
+  it("Initialize Config", async () => {
+
+    // Init Config
+    await utils.initializeConfig(spreePointsProgram, deployer, pdaMap);
+  })
+
+  it("Add Deployer To Whitelist", async () => {
+
+    // Add Deployer to Whitelist
+    await utils.addToMintWhitelist(spreePointsProgram, deployer, deployerAta, pdaMap);
+  })
+
+  it("Initialize Freeze Account", async () => {
+
+    //
+    await utils.initializeFreeze(spreePointsProgram, deployer, pdaMap);
+  })
+
   it("Deposit Into Ecosystem", async () => {
     // Get The PDAs
     const [configPDA, configBump] = PublicKey.findProgramAddressSync(
@@ -230,15 +278,16 @@ describe("SP token Integration", () => {
       [Buffer.from("collateral_vault"), mintAccount.publicKey.toBuffer()],
       tokenDeployerProgram.programId
     );
-
-    const [splAuthorityPda, splAuthorityBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("spl_authority"), spToken.publicKey.toBuffer()],
-      tokenDeployerProgram.programId
-    );
     const [swapMintAuthorityPda, swapMintAuthorityBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("MINT_AUTH_SEED")],
       mockJupiterProgram.programId
     );
+
+    /*const [splAuthorityPda, splAuthorityBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("spl_authority"), spToken.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
 
     const [feesPda, feesBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("FEES_SEED")],
@@ -251,7 +300,10 @@ describe("SP token Integration", () => {
     const [whitelistStatusPda, whitelistStatusBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("MINT_WHITELIST_SEED"), splMintAuthority.publicKey.toBuffer()],
       spreePointsProgram.programId
-    );
+    );*/
+
+    // SET UP INSTRUCTIONS FOR THE SP TOKEN
+    
 
     // MINT COLLATERAL DEPOSITS TO ECOSYSTEM PARTNER FOR DEPOSIT
     const ecosystemPartnerCollateralAta = await createAssociatedTokenAccount(
@@ -278,7 +330,7 @@ describe("SP token Integration", () => {
 
     const ecosystemPartnerUspTokenAta = await createAssociatedTokenAccount(
       provider.connection,
-      deployer.payer,
+      ecosystemPartner,
       mintAccount.publicKey,
       ecosystemPartner.publicKey,
       null,
@@ -287,8 +339,8 @@ describe("SP token Integration", () => {
       false
     );
 
-    // Create USDC Mint
-    await createMint(
+    // Create USDC Mint ::: Already Created
+    /*await createMint(
       provider.connection,
       deployer.payer,
       swapMintAuthorityPda,
@@ -297,15 +349,15 @@ describe("SP token Integration", () => {
       usdcMint,
       null,
       TOKEN_2022_PROGRAM_ID
-    );
+    );*/
 
     const usdcFeeSwapReceiverAta = await createAssociatedTokenAccount(
       provider.connection,
       deployer.payer,
-      usdcMint.publicKey,
+      usdcMint,
       feeVaultPda,
       null,
-      TOKEN_2022_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       true,
     );
@@ -313,10 +365,10 @@ describe("SP token Integration", () => {
     const usdcKeeperAta = await createAssociatedTokenAccount(
       provider.connection,
       deployer.payer,
-      usdcMint.publicKey,
+      usdcMint,
       usdcKeeper.publicKey,
       null,
-      TOKEN_2022_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       false,
     );
@@ -347,25 +399,37 @@ describe("SP token Integration", () => {
         userSourceTokenAccount: ecosystemPartnerCollateralAta,
         userDestinationTokenAccount: usdcFeeSwapReceiverAta,
         destinationTokenAccount:usdcFeeSwapReceiverAta,
-        destinationMint: usdcMint.publicKey,
+        destinationMint: usdcMint,
         sourceMint: collateralToken.publicKey,
         mintAuthority: swapMintAuthorityPda,
         platformFeeAccount: null,
       })
-      .signers([ecosystemPartner])
+      //.signers([ecosystemPartner])
       .instruction();
 
     const routeData = Buffer.from(routeTx.data);
-    const routeMetas = routeTx.keys.map(k => ({
+    /*const routeMetas = routeTx.keys.map(k => ({
       pubkey: k.pubkey,
       isSigner: k.isSigner,
       isWritable: k.isWritable,
-    }));
+    }));*/
+
+    const routeMetas = routeTx.keys.map(meta => {
+    // This is the fix. The payer is already signing the transaction, so we
+    // explicitly mark it as not a signer in the remainingAccounts list
+    // to prevent the conflict. The CPI will still see the signature.
+    if (meta.pubkey.equals(ecosystemPartner.publicKey)) {
+        return { ...meta, isSigner: false };
+    }
+    return meta;
+});
+
 
     // Build Deposit Tx
     const anchorDepositIx = await tokenDeployerProgram.methods
       .depositEcosystem(new BN(depositAmount), routeData)
       .accounts({
+        payer: ecosystemPartner,
         config: configPDA,
         mintAccount: mintAccount.publicKey,
         mintAuthority: mintAuthorityPda,
@@ -374,23 +438,29 @@ describe("SP token Integration", () => {
         collateralTokenMint: collateralToken.publicKey,
         userCollateralAccount: ecosystemPartnerCollateralAta,
         feeVault: feeVaultPda,
-        spMint: spToken.publicKey,
-        spMintAuthority: splAuthorityPda,
+        spMint: pdaMap.mint,
+        spMintAuthority: deployer.publicKey,
         usdcReceiveSwapAta: usdcFeeSwapReceiverAta,
-        usdcMint: usdcMint.publicKey,
+        usdcMint: usdcMint,
         usdcKeeper: usdcKeeperAta,
         fees: fees.publicKey,
         feesCollector: feesCollector.publicKey,
-        freezeState: freezePDA,
-        whitelistStatus: whitelistStatusPda,
+        freezeState: deployer.publicKey,
+        whitelistStatus: deployer.publicKey,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
         tokenProgramInterface: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        spProgram: spreePointsProgram.programId,
+        jupiterProgram: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
       })
+      //.signers([ecosystemPartner])
       .remainingAccounts(routeMetas)
       .instruction();
 
     // Build Versioned Transaction
-    const { blockhash } = await provider.connection.getLatestBlockhash("confirmed");
+    const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash("confirmed");
     const messagev0 = new TransactionMessage({
         payerKey: ecosystemPartner.publicKey,
         recentBlockhash: blockhash,
@@ -399,7 +469,14 @@ describe("SP token Integration", () => {
     const tx = new VersionedTransaction(messagev0);
 
     // Send The Versioned Transaction
-    const signature = await provider.sendAndConfirm(tx, [ecosystemPartner]);
+    tx.sign([ecosystemPartner]);
+    const signature = await provider.connection.sendTransaction(tx);
+    await provider.connection.confirmTransaction({
+      signature,
+      blockhash,
+      lastValidBlockHeight,
+
+    }, "confirmed");
     console.log("Deposit suceeded: ", signature);
   })
 })

@@ -4,12 +4,13 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::pubkey;
 use anchor_lang::solana_program::{instruction::Instruction, program::{invoke_signed, invoke}};
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_2022::{
+/*use anchor_spl::token_2022::{
     set_authority, mint_to, Token2022,
     SetAuthority, MintTo,
-};
+};*/
 use anchor_spl::{token_interface::{
-    transfer_checked, TransferChecked,
+    transfer_checked, TransferChecked, Token2022,
+    set_authority, SetAuthority, mint_to, MintTo,
     Mint, TokenAccount, burn, Burn, TokenInterface
 },
     /*token::{
@@ -864,7 +865,7 @@ pub struct DepositEcosystem<'info> {
         mut,
         seeds = [b"ecosystem_config", mint_account.key().as_ref()],
         bump,
-        constraint = ecosystem_config.ecosystem_partner_wallet == payer.key() @ ErrorCode::Unauthorized
+        //constraint = ecosystem_config.ecosystem_partner_wallet == payer.key() @ ErrorCode::Unauthorized
     )]
     pub ecosystem_config: Account<'info, EcosystemConfig>,
     
@@ -873,7 +874,7 @@ pub struct DepositEcosystem<'info> {
     #[account(
         mut,
         constraint = user_collateral_account.mint == collateral_token_mint.key() @ ErrorCode::InvalidCollateralToken,
-        constraint = user_collateral_account.owner == payer.key() @ ErrorCode::Unauthorized
+        //constraint = user_collateral_account.owner == payer.key() @ ErrorCode::Unauthorized
     )]
     pub user_collateral_account: Box<InterfaceAccount<'info, TokenAccount>>,
     
@@ -889,9 +890,9 @@ pub struct DepositEcosystem<'info> {
 
     /// CHECK: Approved SP Mint Authority account.
     #[account(
-        mut,
-        seeds = [b"sp_mint_authority", sp_mint.key().as_ref()],
-        bump,
+        //mut,
+        //seeds = [b"sp_mint_authority", sp_mint.key().as_ref()],
+        //bump,
     )]
     pub sp_mint_authority: AccountInfo<'info>,
 
@@ -899,7 +900,7 @@ pub struct DepositEcosystem<'info> {
     #[account(
         mut,
         associated_token::mint = usdc_mint_id(),
-        associated_token::authority = mint_authority
+        associated_token::authority = fee_vault
     )]
     pub usdc_receive_swap_ata: Box<InterfaceAccount<'info, TokenAccount>>,
   
