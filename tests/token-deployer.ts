@@ -1367,6 +1367,7 @@ describe("token-deployer with transfer hook", () => {
     const unauthorizedToggleEcosystemTx = tokenDeployerProgram.methods
       .toggleEcosystemFreeze()
       .accounts({
+        
         config: configPda,
         payer: unauthorizedWalletKeypair.publicKey,
         ecosystem_config: ecosystemConfigPda,
