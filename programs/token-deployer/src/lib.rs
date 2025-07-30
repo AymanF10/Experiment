@@ -37,7 +37,7 @@ declare_program!(spree_points);
 declare_program!(jupiter_aggregator);
 
 
-declare_id!("3qGYKoUN2dxCqxbGYLPBFSZaXNLLt1rVwsJTfbah9gE6");
+declare_id!("CEzsTf7eM9ac1kGx7DuZHdXv8b4mLPQBbRzrQcMJmJBh");
 
 
 pub fn sp_program_id() -> Pubkey {

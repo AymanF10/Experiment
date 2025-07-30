@@ -8,7 +8,7 @@ use anchor_spl::token::{
     MintTo
 };
 
-declare_id!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+declare_id!("JA1v2pi2o7yG79hHFqADtSgPZHmMspnKHGcecPAeK9pa");
 
 const MINT_AUTH_SEED: &[u8] = b"jupiter-mint-auth";
 
