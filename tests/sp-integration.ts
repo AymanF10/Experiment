@@ -90,17 +90,30 @@ describe("SP token Integration", () => {
       executor: [Buffer.from(utils.EXECUTOR_SEED)]
     });
 
-  before(async () => {
-    await airdropSol(provider, ecosystemPartner.publicKey, 5);
-    //await airdropSol(provider, userAlice.publicKey, 5);
-    await airdropSol(provider, configOwner.publicKey, 5);
-    
-    // Find config PDA
-    [configPDA, configBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("config")],
-      tokenDeployerProgram.programId
-    );
-  })
+    before(async () => {
+      await airdropSol(provider, ecosystemPartner.publicKey, 5);
+      await airdropSol(provider, configOwner.publicKey, 5);
+  
+      // Find config PDA
+      [configPDA, configBump] = PublicKey.findProgramAddressSync(
+        [Buffer.from("config")],
+        tokenDeployerProgram.programId
+      );
+  
+      // Initialize the global config account if it's not already created
+      const configInfo = await provider.connection.getAccountInfo(configPDA);
+      if (!configInfo) {
+        await tokenDeployerProgram.methods
+          .initialize()
+          .accounts({
+            config: configPDA,
+            payer: deployer.publicKey,        // use your provider.wallet (deployer)
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc({ commitment: "confirmed" });
+      }
+    })
+  
 
   it("Initialize SP Token From The SP Program", async () => {
     // Check if mint already exists
@@ -194,6 +207,101 @@ describe("SP token Integration", () => {
 
     // Initialize freeze account
     await utils.initializeFreeze(spreePointsProgram, deployer, pdaMap);
+  })
+
+  it("Create Collateral Token Mint", async () => {
+    // Check if collateral token mint already exists
+    const collateralMintInfo = await provider.connection.getAccountInfo(collateralToken.publicKey);
+    if (collateralMintInfo) {
+      console.log("Collateral token mint already exists, skipping creation");
+      return;
+    }
+
+    // Create the collateral token mint
+    await createMint(
+      provider.connection,
+      deployer.payer,
+      deployer.publicKey,
+      deployer.publicKey,
+      9, // decimals
+      collateralToken,
+      null,
+      TOKEN_2022_PROGRAM_ID
+    );
+
+    console.log("Collateral token mint created successfully");
+    console.log(`Collateral Token Mint: ${collateralToken.publicKey.toString()}`);
+  })
+
+  it("Create Ecosystem", async () => {
+    // Get The PDAs for ecosystem creation
+    const [mintAuthorityPda, mintAuthorityBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("mint_authority"), mintAccount.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
+    const [ecosystemConfigPda, ecosystemConfigBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("ecosystem_config"), mintAccount.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
+    const [feeVaultAuthorityPda, feeVaultAuthorityBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("fee_vault_authority"), mintAccount.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
+    const [feeVaultPda, feeVaultBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("fee_vault"), mintAccount.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+    
+    const [collateralVaultPda, collateralVaultBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("collateral_vault"), mintAccount.publicKey.toBuffer()],
+      tokenDeployerProgram.programId
+    );
+
+    // Check if ecosystem config already exists
+    const ecosystemConfigInfo = await provider.connection.getAccountInfo(ecosystemConfigPda);
+    if (ecosystemConfigInfo) {
+      console.log("Ecosystem already exists, skipping creation");
+      return;
+    }
+
+    // Create the ecosystem
+    await tokenDeployerProgram.methods
+      .createEcosystem({
+        decimals: 9, // Match the collateral token decimals
+        name: "Test Ecosystem uSP",
+        symbol: "uSP",
+        uri: "",
+        transferHookProgramId: transferHookProgram.programId,
+        ecosystemPartnerWallet: ecosystemPartner.publicKey,
+        maxMintingCap: new BN("1000000000000"),
+        withdrawalFeeBasisPoints: 50,
+        depositFeeBasisPoints: 25,
+        collateralTokenMint: collateralToken.publicKey,
+      })
+      .accounts({
+        config: configPDA,
+        payer: deployer.publicKey,
+        mintAccount: mintAccount.publicKey,
+        mintAuthority: mintAuthorityPda,
+        ecosystemConfig: ecosystemConfigPda,
+        feeVaultAuthority: feeVaultAuthorityPda,
+        collateralTokenMint: collateralToken.publicKey,
+        feeVault: feeVaultPda,
+        collateralVault: collateralVaultPda,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([mintAccount])
+      .rpc({ commitment: "confirmed" });
+
+    console.log("Ecosystem created successfully");
+    console.log(`Mint Account: ${mintAccount.publicKey.toString()}`);
+    console.log(`Ecosystem Config: ${ecosystemConfigPda.toString()}`);
   })
 
   it("Deposit Into Ecosystem", async () => {
@@ -390,7 +498,7 @@ describe("SP token Integration", () => {
         userCollateralAccount: ecosystemPartnerCollateralAta,
         feeVault: feeVaultPda,
         spMint: pdaMap.mint,
-        fee_vault_authority: feeVaultAuthorityPda,
+        feeVaultAuthority: feeVaultAuthorityPda,
         usdcReceiveSwapAta: usdcFeeSwapReceiverAta,
         usdcMint: usdcMint,
         usdcKeeper: usdcKeeperAta,

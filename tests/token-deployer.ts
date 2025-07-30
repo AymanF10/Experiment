@@ -35,9 +35,7 @@ describe("token-deployer with transfer hook", () => {
   const tokenDeployerProgram = anchor.workspace.TokenDeployer as Program<TokenDeployer>;
   const transferHookProgram = anchor.workspace.TransferHook as Program<TransferHook>;
   //const spreePointsProgram = anchor.workspace.SpreePoints as Program<SpreePoints>;
-  const jupiterProgramId = new PublicKey(
-  "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"
-);
+  const jupiterProgramId = new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
   const spreePointsProgramId = new PublicKey("4tMWWjzrvgqdTPrRynnSmzwVDS2RyfCxXhEzSjJH1A1p");
   const spreePointsProgram = new Program(
     spreeIdl,
@@ -56,7 +54,7 @@ describe("token-deployer with transfer hook", () => {
   const collateralDecimal = 9;
   
   const ecosystemPartnerKeypair = Keypair.generate();
-  const unauthorizedWalletKeypair = Keypair.generate();
+  let unauthorizedWalletKeypair = Keypair.generate();
   
   let walletCollateralAccount, partnerCollateralAccount, unauthorizedCollateralAccount;
 
@@ -84,29 +82,31 @@ describe("token-deployer with transfer hook", () => {
     }
 
     return tokenDeployerProgram.methods
-      .depositEcosystem(new anchor.BN(amount))
-      .accounts({
-        payer: ecosystemPartnerKeypair.publicKey,
-        config: configPda,
-        mint: mintKeypair.publicKey,
-        mintAuthority: mintAuthorityPda,
-        toAta: ecosystemPartnerTokenAccount,
-        ecosystemConfig: ecosystemConfigPda,
-        collateralTokenMint: collateralMintKeypair.publicKey,
-        userCollateralAccount: partnerCollateralAccount,
-        feeVault: feeVaultPda,
-        spMint: spMintKeypair.publicKey,
-        fee_vault_authority: feeVaultAuthorityPda,
-        collateralVault: collateralVaultPda,
-        tokenProgram: TOKEN_2022_PROGRAM_ID,
-        tokenProgramInterface: TOKEN_2022_PROGRAM_ID,
-        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ecosystemPartnerKeypair])
-      .rpc({ commitment: "confirmed" });
+    .depositEcosystem(new anchor.BN(amount))
+    .accounts({
+      payer: ecosystemPartnerKeypair.publicKey,
+      config: configPda,
+      mint: mintKeypair.publicKey,
+      mintAuthority: mintAuthorityPda,
+      toAta: ecosystemPartnerTokenAccount,
+      ecosystemConfig: ecosystemConfigPda,
+      collateralTokenMint: collateralMintKeypair.publicKey,
+      userCollateralAccount: partnerCollateralAccount,
+      feeVault: feeVaultPda,
+      spMint: spMintKeypair.publicKey,
+      feeVaultAuthority: feeVaultAuthorityPda,
+      usdcReceiveSwapAta: ecosystemPartnerTokenAccount,
+      collateralVault: collateralVaultPda,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      tokenProgramInterface: TOKEN_2022_PROGRAM_ID,
+      collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+    })
+    .signers([ecosystemPartnerKeypair])
+    .rpc({ commitment: "confirmed" });
+  
   }
 
   async function expectTxToFail(txPromise) {
@@ -368,7 +368,7 @@ describe("token-deployer with transfer hook", () => {
       })
       .accounts({
         config: configPda,
-        payer: actualPayer, // Use the wallet as payer
+        payer: actualPayer.publicKey, // Use the wallet as payer
         mintAccount: mintKeypair.publicKey,
         mintAuthority: mintAuthorityPda,
         ecosystemConfig: ecosystemConfigPda,
@@ -382,7 +382,8 @@ describe("token-deployer with transfer hook", () => {
         spMint: spMintKeypair.publicKey,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([actualPayer, mintKeypair])
+      .signers([mintKeypair])
+
       .rpc({ commitment: "confirmed" });
 
     [extraAccountMetas] = PublicKey.findProgramAddressSync(
@@ -412,16 +413,17 @@ describe("token-deployer with transfer hook", () => {
     // Check if extra account metas already exist
     const extraAccountMetasInfo = await connection.getAccountInfo(extraAccountMetas);
     if (!extraAccountMetasInfo) {
-      // Initialize extra account metas
       await transferHookProgram.methods
-        .initializeExtraAccountMetaList(transferHookConfigPda)
-        .accounts({
-          payer: wallet.publicKey,
-          extraAccountMetaList: extraAccountMetas,
-          mint: mintKeypair.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc({ commitment: "confirmed" });
+      .initializeExtraAccountMetaList()
+      .accounts({
+      config: transferHookConfigPda,
+      extraAccountMetaList: extraAccountMetas,
+      mint: mintKeypair.publicKey,
+      payer: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+  })
+   .rpc({ commitment: "confirmed" });
     }
 
     sourceTokenAccount = getAssociatedTokenAddressSync(
@@ -597,7 +599,8 @@ describe("token-deployer with transfer hook", () => {
         userCollateralAccount: unauthorizedCollateralAccount,
         feeVault: feeVaultPda,
         spMint: spMintKeypair.publicKey,
-        fee_vault_authority: feeVaultAuthorityPda,
+        feeVaultAuthority: feeVaultAuthorityPda,
+        usdcReceiveSwapAta: unauthorizedTokenAccount,
         collateralVault: collateralVaultPda,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         tokenProgramInterface: TOKEN_2022_PROGRAM_ID,
@@ -610,14 +613,12 @@ describe("token-deployer with transfer hook", () => {
     
     const mintFailed = await expectTxToFail(unauthorizedMintTx.rpc({ commitment: "confirmed" }));
     assert(mintFailed, "Minting should fail with unauthorized wallet");
-
     const mintInfoBefore = await getMint(
       connection,
       mintKeypair.publicKey,
       "confirmed",
       TOKEN_2022_PROGRAM_ID
     );
-    
     await mintTokensWithPartner(mintAmount);
     
     // Ensure the token account exists before checking balance
