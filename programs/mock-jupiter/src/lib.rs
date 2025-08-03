@@ -1,14 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{
-    self, 
-    Token, 
-    TokenAccount, 
-    Burn, 
-    Mint, 
-    MintTo
-};
+use anchor_spl::{token_interface::{
+    self, Burn, Mint, MintTo, TokenAccount,
+ TokenInterface}};
+ use anchor_spl::token::{transfer_checked, TransferChecked};
 
-declare_id!("6VvzGBoX9nT4U6no4Yc8GwmN6h3ckvyRu24rCZzUfpsp");
+declare_id!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
 
 const MINT_AUTH_SEED: &[u8] = b"jupiter-mint-auth";
 
@@ -30,9 +26,9 @@ pub mod mock_jupiter {
             return err!(ErrorCode::EmptyRoute);
         }
         
-        token::burn(
+        token_interface::burn(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.burn_token_program.to_account_info(),
                 Burn {
                     mint: ctx.accounts.source_mint.to_account_info(),
                     from: ctx.accounts.user_source_token_account.to_account_info(),
@@ -53,22 +49,19 @@ pub mod mock_jupiter {
         } else {
             0
         };
-        
-        let bump = ctx.bumps.mint_authority;
-        let seeds = &[MINT_AUTH_SEED, &[bump]];
-        let signer_seeds = &[&seeds[..]];
-        
-        token::mint_to(
-            CpiContext::new_with_signer(
+
+        transfer_checked(
+            CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                MintTo {
-                    mint: ctx.accounts.destination_mint.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.usdc_whale.to_account_info(),
                     to: ctx.accounts.user_destination_token_account.to_account_info(),
-                    authority: ctx.accounts.mint_authority.to_account_info(),
+                    authority: ctx.accounts.payer.to_account_info(),
+                    mint: ctx.accounts.destination_mint.to_account_info(),
                 },
-                signer_seeds,
             ),
             out_amount - fee_amount,
+            ctx.accounts.destination_mint.decimals,
         )?;
         
         msg!("Route swap completed successfully");
@@ -80,23 +73,25 @@ pub mod mock_jupiter {
 
 #[derive(Accounts)]
 pub struct RouteAccounts<'info> {
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
+
+    pub burn_token_program: Interface<'info, TokenInterface>,
     
     #[account(mut)]
     pub user_transfer_authority: Signer<'info>,
     
     #[account(mut)]
-    pub user_source_token_account: Account<'info, TokenAccount>,
+    pub user_source_token_account: InterfaceAccount<'info, TokenAccount>,
     
     #[account(mut)]
-    pub user_destination_token_account: Account<'info, TokenAccount>,
+    pub user_destination_token_account: InterfaceAccount<'info, TokenAccount>,
     
     /// CHECK: Optional account - ownership check is disabled for mock
     #[account(mut)]
-    pub destination_token_account: Option<UncheckedAccount<'info>>,
+    pub usdc_whale: InterfaceAccount<'info, TokenAccount>,
     
     #[account(mut)]
-    pub destination_mint: Account<'info, Mint>,
+    pub destination_mint: InterfaceAccount<'info, Mint>,
     
     /// CHECK: Optional account - ownership check is disabled for mock
     #[account(mut)]
@@ -105,18 +100,13 @@ pub struct RouteAccounts<'info> {
     /// CHECK: Not used in mock
     pub event_authority: UncheckedAccount<'info>,
     
+    pub payer: Signer<'info>,
     /// CHECK: Not used in mock
     pub program: UncheckedAccount<'info>,
     
     #[account(mut)]
-    pub source_mint: Account<'info, Mint>,
+    pub source_mint: InterfaceAccount<'info, Mint>,
     
-    /// CHECK: PDA owned by this program that signs for mint
-    #[account(
-        seeds = [MINT_AUTH_SEED],
-        bump,
-    )]
-    pub mint_authority: UncheckedAccount<'info>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]

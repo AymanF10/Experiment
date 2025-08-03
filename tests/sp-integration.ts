@@ -51,11 +51,12 @@ describe("SP token Integration", () => {
   const jupiterId = new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
 
   // Set Up Actors In The System
-  const ecosystemPartner = provider.wallet as anchor.Wallet;
-  const deployer = anchor.web3.Keypair.generate();
+  const deployer = provider.wallet as anchor.Wallet;
+  const ecosystemPartner = anchor.web3.Keypair.generate();
   const configOwner = anchor.web3.Keypair.generate();
   
-  const ecosystemPartnerAta = new PublicKey("Dt1xGJ1mhuSPcVXgBx1EZtWWHTbEVq24wVcroWF1ib8c");
+  
+  const deployerAta = new PublicKey("6dvYkN8DuxgUqn12cBMVcuooqKWxGf4fPSEeKEugaDFr");
 
  
   const mintAccount = anchor.web3.Keypair.generate();
@@ -91,6 +92,7 @@ describe("SP token Integration", () => {
     await airdropSol(provider, deployer.publicKey, 5);
     //await airdropSol(provider, userAlice.publicKey, 5);
     await airdropSol(provider, configOwner.publicKey, 5);
+    await airdropSol(provider, ecosystemPartner.publicKey, 5);
   })
 
 
@@ -117,18 +119,18 @@ describe("SP token Integration", () => {
       // Create Mints
     await createMint(
       provider.connection,
-      deployer,
+      deployer.payer,
       deployer.publicKey,
       deployer.publicKey,
       9,
       collateralToken,
-      null,
+      {commitment: "confirmed"},
       TOKEN_2022_PROGRAM_ID,
     );
 
     //console.log("CREATED COLLATERAL TOKEN: ", collateralToken);
 
-    await utils.initializeMint(spreePointsProgram, ecosystemPartner, usdcMint, pdaMap);
+    await utils.initializeMint(spreePointsProgram, deployer, usdcMint, pdaMap);
 
 
     const [mintAuthorityPda, mintAuthorityBump] = PublicKey.findProgramAddressSync(
@@ -155,11 +157,7 @@ describe("SP token Integration", () => {
       [Buffer.from("collateral_vault"), mintAccount.publicKey.toBuffer()],
       tokenDeployerProgram.programId
     );
-/*
-    const [splAuthorityPda, splAuthorityBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("spl_authority"), pdaMap.mint.toBuffer()],
-      tokenDeployerProgram.programId
-    );*/
+
 
     // Get Instruction Arguments
     const decimals = 9;
@@ -191,13 +189,14 @@ describe("SP token Integration", () => {
         mintAccount: mintAccount.publicKey,
         mintAuthority: mintAuthorityPda,
         ecosystemConfig: ecosystemConfigPda,
-        spMint: pdaMap.mint,
+        usdcMint: usdcMint,
         feeVaultAuthority: feeVaultAuthorityPda,
         collateralTokenMint: collateralToken.publicKey,
         feeVault: feeVaultPda,
         collateralVault: collateralVaultPda,
-        tokenProgram: TOKEN_2022_PROGRAM_ID,
         collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        legacyTokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId, 
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
@@ -209,24 +208,24 @@ describe("SP token Integration", () => {
   it("Initialize SP Token Mint Keeper", async () => {
 
     // Initialize Mint Keeper
-    await utils.initializeMintKeeper(spreePointsProgram, ecosystemPartner, pdaMap);
+    await utils.initializeMintKeeper(spreePointsProgram, deployer, pdaMap);
   })
 
   it("Initialize Config", async () => {
 
     // Init Config
-    await utils.initializeConfig(spreePointsProgram, ecosystemPartner, pdaMap);
+    await utils.initializeConfig(spreePointsProgram, deployer, pdaMap);
   })
 
   it("Add Deployer To Whitelist", async () => {
 
     // Create deployer’s SP-token ATA
-    const deployerAta = await createAssociatedTokenAccount(
+    const ecosystemPartnerAta = await createAssociatedTokenAccount(
       provider.connection,
-      deployer,                       // payer & signer
+      deployer.payer,                       // payer & signer
       pdaMap.mint,                    // SP mint PDA
-      deployer.publicKey,             // owner of the ATA
-      null,
+      ecosystemPartner.publicKey,             // owner of the ATA
+      {commitment: "confirmed"},
       TOKEN_2022_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       false
@@ -235,8 +234,8 @@ describe("SP token Integration", () => {
     // Add Deployer to Whitelist
     await utils.addToMintWhitelist(
       spreePointsProgram,
-      ecosystemPartner,
-      deployerAta,
+      deployer,
+      ecosystemPartnerAta,
       pdaMap
     );
   });
@@ -244,24 +243,24 @@ describe("SP token Integration", () => {
   it("Initialize Freeze Account", async () => {
 
     //
-    await utils.initializeFreeze(spreePointsProgram, ecosystemPartner, pdaMap);
+    await utils.initializeFreeze(spreePointsProgram, deployer, pdaMap);
   })
 
   it("Initialize Fees and Fee Collector", async () => {
 
     const feeCollectorAta = await createAssociatedTokenAccount(
       provider.connection,
-      deployer,
+      deployer.payer,
       pdaMap.mint,
       feesCollector.publicKey,
-      null,
+      {commitment: "confirmed"},
       TOKEN_2022_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       false
     );
     await utils.initializeFees(
       spreePointsProgram, 
-      ecosystemPartner, 
+      deployer, 
       pdaMap.mint, 
       {
         mintFeeBps: 0,
@@ -303,48 +302,48 @@ describe("SP token Integration", () => {
       [Buffer.from("collateral_vault"), mintAccount.publicKey.toBuffer()],
       tokenDeployerProgram.programId
     );
-    const [swapMintAuthorityPda, MintAuthorityBump] = PublicKey.findProgramAddressSync(
+    /*const [swapMintAuthorityPda, MintAuthorityBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("jupiter-mint-auth")],
       jupiterId
     );
-
-    await utils.initializeMint(spreePointsProgram, ecosystemPartner, usdcMint, pdaMap);
+*/
+    await utils.initializeMint(spreePointsProgram, deployer, usdcMint, pdaMap);
     //console.log("PDA MINT INITIALIZATION DONE: ", pdaMap.mint);
 
     // MINT COLLATERAL DEPOSITS TO ECOSYSTEM PARTNER FOR DEPOSIT
     const ecosystemPartnerCollateralAta = await createAssociatedTokenAccount(
       provider.connection,
-      ecosystemPartner.payer,
+      ecosystemPartner,
       collateralToken.publicKey,
       ecosystemPartner.publicKey,
-      null,
+      {commitment: "confirmed"},
       TOKEN_2022_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       false,
     );
     await mintTo(
       provider.connection,
-      deployer,
+      deployer.payer,
       collateralToken.publicKey,
       ecosystemPartnerCollateralAta,
       deployer.publicKey,
       1000 * 10 ** 9,
       [],
-      null,
+      {commitment: "confirmed"},
       TOKEN_2022_PROGRAM_ID
     );
 
-// Create the SP ATA manually with the correct program (legacy)
+/*// Create the SP ATA manually with the correct program (legacy)
 const payerSpTempAta = await createAssociatedTokenAccount(
   provider.connection,
-  ecosystemPartner.payer, // payer
+  ecosystemPartner, // payer
   pdaMap.mint,      // SP mint (legacy)
   ecosystemPartner.publicKey, // owner
   null,
   TOKEN_2022_PROGRAM_ID, // Use legacy since SP mint is legacy ////! Might Change
   ASSOCIATED_TOKEN_PROGRAM_ID,
   false
-);
+);*/
 
     
     const ecosystemPartnerUspTokenAta = await getAssociatedTokenAddressSync(
@@ -377,16 +376,16 @@ const payerSpTempAta = await createAssociatedTokenAccount(
     );*/
 
     //ERROR IS NOT FROM usdcFeeSwapReceiverAta
-    const usdcFeeSwapReceiverAta = await createAssociatedTokenAccount(
+    /*const usdcFeeSwapReceiverAta = await createAssociatedTokenAccount(
       provider.connection,
-      ecosystemPartner.payer,
+      ecosystemPartner,
       usdcMint,
       ecosystemPartner.publicKey,// should be ecosystemPartner
       null,
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       false,
-    );
+    );*/
 /* ERROR IS NOT FROM payerUsdcKeeperAta alone
     const payerUsdcKeeperAta = await createAssociatedTokenAccount(
       provider.connection,
@@ -409,26 +408,52 @@ const payerSpTempAta = await createAssociatedTokenAccount(
 
     //await utils.addToMintWhitelist(spreePointsProgram, ecosystemPartner, payerUsdcKeeperAta, pdaMap);
 
-    await setAuthority(
+    const tempFeeVaultAta = await getAssociatedTokenAddressSync(
+      collateralToken.publicKey,
+      feeVaultAuthorityPda,
+      true,
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    /*const feeVaultAta = await getAssociatedTokenAddressSync(
+      usdcMint,
+      feeVaultAuthorityPda,
+      true,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+    );*/
+    const feeVaultAta = await createAssociatedTokenAccount( 
       provider.connection,
-      ecosystemPartner.payer,
+      ecosystemPartner,
+      usdcMint,
+      feeVaultAuthorityPda,
+      {commitment: "confirmed"},
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      true,
+    );
+
+    /*await setAuthority(
+      provider.connection,
+      ecosystemPartner,
       usdcMint,
       ecosystemPartner.publicKey,
       AuthorityType.MintTokens,
       swapMintAuthorityPda,
-    );
+    );*/
 //
     // Constants
     const depositAmount = 500;
     const feeAmount = 100;
     const platformFeeAddress = anchor.web3.Keypair.generate();
-    const dataForFeeSwapReceiver = await getAccount(provider.connection, usdcFeeSwapReceiverAta);
-    console.log("USDC Account Balance of Fee Swap Receiver Is: ", Number(dataForFeeSwapReceiver.amount));
+    //const dataForFeeSwapReceiver = await getAccount(provider.connection, usdcFeeSwapReceiverAta);
+    //console.log("USDC Account Balance of Fee Swap Receiver Is: ", Number(dataForFeeSwapReceiver.amount));
     const usdcMintInfo = await provider.connection.getAccountInfo(usdcMint);
     console.log("USDC mint owner is: ", usdcMintInfo?.owner);
 
     // Let USDC Minter Mints Some Tokens To USDCFEERECeiver
-    await mintTo(
+    /*await mintTo(
       provider.connection,
       ecosystemPartner.payer,
       usdcMint,
@@ -437,8 +462,9 @@ const payerSpTempAta = await createAssociatedTokenAccount(
       100 * 10 ** 6,
       [],
 
-    );
-
+    );*/
+    const feeVaultAtBalance = await getAccount(provider.connection, feeVaultAta);
+    console.log("Fee Vault Balance Before Swap Is: ", Number(feeVaultAtBalance.amount));
     const routePlan = [
       {
         swap: { raydium: {} },
@@ -460,15 +486,15 @@ const payerSpTempAta = await createAssociatedTokenAccount(
       .accounts({
         userTransferAuthority: ecosystemPartner.publicKey,
         userSourceTokenAccount: ecosystemPartnerCollateralAta,
-        userDestinationTokenAccount: usdcFeeSwapReceiverAta,
-        destinationTokenAccount:usdcFeeSwapReceiverAta,
+        userDestinationTokenAccount:feeVaultAta,
+        usdcWhale: deployerAta,
         destinationMint: usdcMint,// Legacy Token
         sourceMint: collateralToken.publicKey,// Collateral Token
-        mintAuthority: swapMintAuthorityPda,
         eventAuthority: deployer.publicKey,
-        burnTokenProgram: TOKEN_2022_PROGRAM_ID,// Collateral Token is a 2022
-        tokenProgram: TOKEN_PROGRAM_ID,// Keep This As USDC is Legacy Token
-        platformFeeAccount: platformFeeAddress.publicKey,
+        burnTokenProgram: TOKEN_2022_PROGRAM_ID, // Collateral Token is a 2022
+        tokenProgram: TOKEN_PROGRAM_ID, // Keep This As USDC is Legacy Token
+        payer: deployer.publicKey, // Fix: payer should be a PublicKey, not a Keypair
+        platformFeeAccount: null,
         program: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
       })
       .instruction();
@@ -476,13 +502,13 @@ const payerSpTempAta = await createAssociatedTokenAccount(
     const routeData = Buffer.from(routeTx.data);
     const routeMetas = routeTx.keys.map(meta => {
       
-      if (meta.pubkey.equals(ecosystemPartner.publicKey)) {
+      /*if (meta.pubkey.equals(ecosystemPartner.publicKey)) {
           return { ...meta, isSigner: false };
-      }
+      }*/
       return meta;
     });
 
-    const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash("confirmed");
+    /*const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash("confirmed");
     const messagev0 = new TransactionMessage({
         payerKey: ecosystemPartner.publicKey,
         recentBlockhash: blockhash,
@@ -491,35 +517,18 @@ const payerSpTempAta = await createAssociatedTokenAccount(
     const routeFTx = new VersionedTransaction(messagev0);
 
     // Send The Versioned Transaction
-    routeFTx.sign([ecosystemPartner.payer]);
+    routeFTx.sign([ecosystemPartner, deployer.payer]);
     const sig = await provider.connection.sendTransaction(routeFTx);
-    /*await provider.connection.confirmTransaction({
-      sig,
+    await provider.connection.confirmTransaction({
+      signature: sig,
       blockhash,
       lastValidBlockHeight,
-    }, "confirmed");*/
+    }, "confirmed");
+    const feeVaultAtBalanceAfter = await getAccount(provider.connection, feeVaultAta);
 
-    const [whitelistStatusPda, whitelistStatusBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from(utils.MINT_WHITELIST_SEED), usdcFeeSwapReceiverAta.toBuffer()],
-      spreePointsProgram.programId
-    );
-
-    const [freezeStatePda, freezeStateBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from(utils.FREEZE_SEED)],
-      spreePointsProgram.programId
-    );
-
-    
-    const [spMintAuthorityPda, spMintAuthorityBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("sp_mint_authority"), pdaMap.mint.toBuffer()],
-      tokenDeployerProgram.programId
-    );
-
-    const [usdcKeeperPda, usdcKeeperBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from(utils.USDC_SEED)],
-      spreePointsProgram.programId
-    );
-
+    console.log("Fee Vault Balance After Swap Is: ", Number(feeVaultAtBalanceAfter.amount));
+*/
+/*
     const pdaInfo = await provider.connection.getAccountInfo(usdcKeeperPda);
     console.log("USDC Keeper PDA exists:", !!pdaInfo);
 
@@ -569,11 +578,11 @@ try {
 } catch (error) {
     console.log("❌ usdc_from_ata is NOT a valid token account:", error);
 }
-
+*/
 //
     // Build Deposit Tx
     const anchorDepositIx = await tokenDeployerProgram.methods
-      .depositEcosystem(new BN(depositAmount), Buffer.alloc(0))
+      .depositEcosystem(new BN(depositAmount), routeData)
       .accounts({
         payer: ecosystemPartner.publicKey,
         config: configPDA,
@@ -585,52 +594,46 @@ try {
         userCollateralAccount: ecosystemPartnerCollateralAta,
         collateralVault: collateralVaultPda,
         feeVault: feeVaultPda,
-        spMint: pdaMap.mint,
-        payerSpTempAta: payerSpTempAta,
         feeVaultAuthority: feeVaultAuthorityPda,// should be fee Vault Authority
-        usdcReceiveSwapAta: usdcFeeSwapReceiverAta,
         usdcMint: usdcMint,
-        //payerUsdcKeeperAta: usdcFeeSwapReceiverAta,
-        usdcKeeper: usdcKeeperPda,
-        fees: pdaMap.fees,
-        feesCollector: feesCollector.publicKey,
-        freezeState: freezeStatePda,
-        whitelistStatus: whitelistStatusPda,
+        tempFeeVaultAta: tempFeeVaultAta,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
         tokenProgramInterface: TOKEN_PROGRAM_ID,
-        collateralTokenProgram: TOKEN_2022_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        spProgram: spreePointsProgram.programId,
         jupiterProgram: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
       })
-      .remainingAccounts(routeMetas)
+      //.remainingAccounts(routeMetas)
       .instruction();
 
     // Build Versioned Transaction
-    //const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash("confirmed");
-    /*const messagev1 = new TransactionMessage({
+    const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash("confirmed");
+    const messagev1 = new TransactionMessage({
         payerKey: ecosystemPartner.publicKey,
         recentBlockhash: blockhash,
-        instructions: [routeTx, anchorDepositIx],
+        instructions: [anchorDepositIx],
     }).compileToV0Message([]);
     const tx = new VersionedTransaction(messagev1);
-
+    /*const tx = new Transaction();
+    tx.add(anchorDepositIx);
+    tx.add(routeTx);
+*/
     // Send The Versioned Transaction
-    tx.sign([ecosystemPartner.payer]);
+    tx.sign([ecosystemPartner]);
     const signature = await provider.connection.sendTransaction(tx);
+    //const signature = await provider.connection.sendTransaction(tx, [ecosystemPartner, deployer.payer]);
     await provider.connection.confirmTransaction({
       signature,
       blockhash,
       lastValidBlockHeight,
 
     }, "confirmed");
-    console.log("Deposit suceeded: ", signature);*/
+    console.log("Deposit suceeded: ", signature);
 
-    // Make Some Logging
-    const dataForFeeSwapReceiverAfter = await getAccount(provider.connection, usdcFeeSwapReceiverAta);
+     //Make Some Logging
+    //const dataForFeeSwapReceiverAfter = await getAccount(provider.connection, usdcFeeSwapReceiverAta);
 
-    console.log("Fee Received After Swap Is: ", Number(dataForFeeSwapReceiverAfter.amount));
+    //console.log("Fee Received After Swap Is: ", Number(dataForFeeSwapReceiverAfter.amount)); 
   })
 })
